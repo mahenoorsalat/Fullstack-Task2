@@ -316,7 +316,7 @@ const MOCK_DELAY = 200; // ms
 
 export const api = {
   authenticateUser: async (email: String , password : String , role : UserRole): Promise<{ user: User , role: UserRole}>  =>{
-   const response = await apiFetch('/api/login' , {
+   const response = await apiFetch('/auth/login' , { // Corrected endpoint: /auth/login
     method : 'POST' , 
     body: JSON.stringify({email , password , role}),
     headers : { 'Content-Type' : 'application/json'}
@@ -328,6 +328,23 @@ export const api = {
     return{user : userData as User , role : userData.role as UserRole };
    }
    throw new Error ('Login Failed : no token received')
+  },
+
+  // NEW/FIXED: registerUser function is correctly defined here
+  registerUser: async (name: string, email: string, password: string, role: UserRole): Promise<{ user: User, role: UserRole }> => {
+    // Calls the POST /api/auth/register endpoint
+    const response = await apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, role }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const { token, ...userData } = response;
+    if (token) {
+      localStorage.setItem('userToken', token);
+      return { user: userData as User, role: userData.role as UserRole };
+    }
+    throw new Error('Registration Failed: no token received');
   },
 
   logout: async (): Promise<void>=>{

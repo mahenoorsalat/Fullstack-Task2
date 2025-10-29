@@ -5,9 +5,11 @@ type UserRole = 'seeker' | 'company' | 'admin';
 interface LoginPageProps {
   onLogin: (email: string, password: string, role: UserRole) => void;
   error: string | null;
+  // NEW PROP: Function to switch the view to the registration form
+  onSwitchToRegister: () => void; 
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error, onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserType] = useState<UserRole>('seeker');
@@ -142,6 +144,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
             </button>
           </div>
         </form>
+
+        {/* NEW: Link to switch to the Register page */}
+        <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+                Don't have an account? 
+                <button 
+                    type="button" 
+                    onClick={onSwitchToRegister} 
+                    className="ml-1 font-medium text-primary hover:text-primary-focus"
+                >
+                    Register here
+                </button>
+            </p>
+        </div>
       </div>
     </div>
   );
