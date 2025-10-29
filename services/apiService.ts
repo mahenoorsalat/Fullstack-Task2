@@ -315,10 +315,10 @@ const MOCK_DELAY = 200; // ms
 // };
 
 export const api = {
-  authenticateUser: async (email: String , password : String , role : UserRole): Promise<{ user: User , role: UserRole}>  =>{
+authenticateUser: async (email: String , password : String , role : UserRole): Promise<{ user: User , role: UserRole}>  =>{
    const response = await apiFetch('/auth/login' , { // Corrected endpoint: /auth/login
     method : 'POST' , 
-    body: JSON.stringify({email , password , role}),
+    body: {email , password , role}, 
     headers : { 'Content-Type' : 'application/json'}
    });
 
@@ -335,7 +335,7 @@ export const api = {
     // Calls the POST /api/auth/register endpoint
     const response = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password, role }),
+      body: { name, email, password, role },
       headers: { 'Content-Type': 'application/json' }
     });
 
@@ -355,12 +355,11 @@ export const api = {
   getUserProfile : async(uid:string) : Promise<{user: User , role : UserRole} | null>=>{
     return null
   } , 
-
-  getSeekers: async() : Promise<JobSeeker[]>=>{
+getSeekers: async() : Promise<JobSeeker[]>=>{
     return apiFetch('/user?role=seeker' , { method : 'GET'})
   },
   getCompanies : async(): Promise<Company[]>=>{
-    return apiFetch('user?role=company' , { method : 'GET'})
+    return apiFetch('/user?role=company' , { method : 'GET'}) // <--- FIX 9: Added leading slash
   },
   getJobs : async(): Promise<Job[]>=>{
     return apiFetch('/jobs' , {method:'GET'})

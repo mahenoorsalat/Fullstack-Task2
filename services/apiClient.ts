@@ -1,8 +1,8 @@
+
 const API_BASE_URL = 'http://localhost:5000/api';
 
 const getToken = () : string | null =>{
     return localStorage.getItem('userToken');
-
 }
 
 export const apiFetch = async(endpoint:string , options: RequestInit ={}): Promise<any>=>{
@@ -15,12 +15,14 @@ export const apiFetch = async(endpoint:string , options: RequestInit ={}): Promi
     };
 
     if(token){
-        headers['Authorization'] = `Bearer${token}`;
+        headers['Authorization'] = `Bearer ${token}`; 
     };
     const response = await fetch(url , {
         ...options , 
         headers,
-        body:options.body || ( options.method === 'POST' || options.method === 'PUT' ? JSON.stringify(options.body) : undefined)
+        body: (options.method === 'POST' || options.method === 'PUT') && options.body 
+            ? JSON.stringify(options.body) 
+            : undefined
     });
     if(!response.ok){
       const errorData = await response.json();
