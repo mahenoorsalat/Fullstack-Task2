@@ -1,7 +1,7 @@
 // FIX: Removed self-import of JobType and LocationType which was causing declaration conflicts.
 export enum JobType {
-  FullTime = 'Full-Time',
-  PartTime = 'Part-Time',
+  FullTime = 'Full-time',
+  PartTime = 'Part-time',
   Contract = 'Contract',
   Internship = 'Internship',
 }

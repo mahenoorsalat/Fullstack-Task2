@@ -32,8 +32,9 @@ const PostJobForm: React.FC<PostJobFormProps> = ({ companyId, companies, jobToEd
         experienceLevel: jobToEdit.experienceLevel,
         salaryMin: jobToEdit.salaryMin,
         salaryMax: jobToEdit.salaryMax,
-        jobType: jobToEdit.jobType,
-        locationType: jobToEdit.locationType,
+        // FIX: Ensure a valid fallback value is used if the field is missing from old job data (e.g., undefined)
+        jobType: jobToEdit.jobType || JobType.FullTime,
+        locationType: jobToEdit.locationType || LocationType.Onsite,
         companyId: jobToEdit.companyId,
       });
     }
@@ -53,7 +54,7 @@ const PostJobForm: React.FC<PostJobFormProps> = ({ companyId, companies, jobToEd
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (jobToEdit) {
-        // FIX: Spread jobToEdit first to preserve properties like applicants, shortlisted, etc.
+        // Spread jobToEdit first to preserve properties like applicants, shortlisted, etc.
         onSave({ ...jobToEdit, ...formData });
     } else {
         onSave(formData);
@@ -70,6 +71,7 @@ const PostJobForm: React.FC<PostJobFormProps> = ({ companyId, companies, jobToEd
             id="companyId" 
             value={formData.companyId} 
             onChange={handleChange} 
+            required 
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
           >
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -106,13 +108,13 @@ const PostJobForm: React.FC<PostJobFormProps> = ({ companyId, companies, jobToEd
         </div>
         <div>
           <label htmlFor="jobType" className="block text-sm font-medium text-gray-700">Job Type</label>
-          <select name="jobType" id="jobType" value={formData.jobType} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+          <select name="jobType" id="jobType" value={formData.jobType} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             {Object.values(JobType).map(type => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor="locationType" className="block text-sm font-medium text-gray-700">Location Type</label>
-          <select name="locationType" id="locationType" value={formData.locationType} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+          <select name="locationType" id="locationType" value={formData.locationType} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             {Object.values(LocationType).map(type => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
