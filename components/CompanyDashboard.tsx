@@ -67,25 +67,25 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, jobs, seek
               Post New Job
             </button>
         </div>
-        <div className="space-y-4">
-          {companyJobs.length > 0 ? companyJobs.map(job => (
-            <div key={job.id} className="p-4 border rounded-lg hover:shadow-sm bg-white/50">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-lg">{job.title}</h4>
-                  <p className="text-sm text-gray-500">{job.location}</p>
-                </div>
-                <button 
-                  onClick={() => setViewingApplicantsForJob(job)}
-                  className="text-primary font-semibold hover:underline"
-                >
-                  View Applicants ({job.applicants?.length ?? 0})
-                </button>
-              </div>
-            </div>
-          )) : <p className="text-gray-500">You haven't posted any jobs yet.</p>}
-        </div>
-      </div>
+<div className="space-y-4">
+          {companyJobs.length > 0 ? companyJobs.map((job, index) => (
+            <div key={job.id || index} className="p-4 border rounded-lg hover:shadow-sm bg-white/50">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-lg">{job.title}</h4>
+                  <p className="text-sm text-gray-500">{job.location}</p>
+                </div>
+                <button 
+                  onClick={() => setViewingApplicantsForJob(job)}
+                  className="text-primary font-semibold hover:underline"
+                >
+                  View Applicants ({job.applicants?.length ?? 0})
+                </button>
+              </div>
+            </div>
+          )) : <p className="text-gray-500">You haven't posted any jobs yet.</p>}
+        </div>
+      </div>
       
       {/* Edit Profile Modal */}
       <Modal
@@ -114,26 +114,26 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, jobs, seek
       </Modal>
 
       {/* View Applicants Modal */}
-      {viewingApplicantsForJob && (
-        <Modal
-          isOpen={!!viewingApplicantsForJob}
-          onClose={() => setViewingApplicantsForJob(null)}
-          title={`Applicants for ${viewingApplicantsForJob.title}`}
-        >
-          <div className="space-y-4">
-            {getApplicants(viewingApplicantsForJob).length > 0 ? getApplicants(viewingApplicantsForJob).map((seeker, index) => (
-              <div key={seeker.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <img src={seeker.photoUrl} alt={seeker.name} className="h-12 w-12 rounded-full mr-4"/>
-                <div>
-                  <p className="font-semibold">{seeker.name}</p>
-                  <p className="text-sm text-gray-600">{seeker.email}</p>
-                  <a href={seeker.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">View Resume</a>
-                </div>
-              </div>
-            )) : <p>No applicants yet for this position.</p>}
-          </div>
-        </Modal>
-      )}
+    {viewingApplicantsForJob && (
+        <Modal
+          isOpen={!!viewingApplicantsForJob}
+          onClose={() => setViewingApplicantsForJob(null)}
+          title={`Applicants for ${viewingApplicantsForJob.title}`}
+        >
+          <div className="space-y-4">
+            {getApplicants(viewingApplicantsForJob).length > 0 ? getApplicants(viewingApplicantsForJob).map((seeker, index) => (
+              <div key={seeker.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                <img src={seeker.photoUrl} alt={seeker.name} className="h-12 w-12 rounded-full mr-4"/>
+                <div>
+                  <p className="font-semibold">{seeker.name}</p>
+                  <p className="text-sm text-gray-600">{seeker.email}</p>
+                  <a href={seeker.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">View Resume</a>
+                </div>
+              </div>
+            )) : <p>No applicants yet for this position.</p>}
+          </div>
+        </Modal>
+      )}
 
     </main>
   );
