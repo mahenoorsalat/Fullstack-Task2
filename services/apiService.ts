@@ -364,9 +364,7 @@ getSeekers: async() : Promise<JobSeeker[]>=>{
   getJobs : async(): Promise<Job[]>=>{
     return apiFetch('/jobs' , {method:'GET'})
   },
-  getBlogPosts: async() : Promise<BlogPost[]>=>{
-    return [];
-  } , 
+ 
 
   saveSeeker:async(seekerData: JobSeeker) : Promise<JobSeeker>=>{
     return apiFetch('/auth/profile' , {method : 'PUT' , body : seekerData})
@@ -382,5 +380,35 @@ getSeekers: async() : Promise<JobSeeker[]>=>{
         // POST /jobs
         return apiFetch('/jobs', { method: 'POST', body: jobData });
     }
+  }, 
+  getBlogPosts: async() : Promise<BlogPost[]>=>{
+    return apiFetch('/blog' , {method:'GET'})
+  } , 
+  addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
+    return apiFetch ('/blog' , {method:"POST" , body : postData })
+  } , 
+  updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
+    return apiFetch(`/blog/${postId}` , {method:'PUT' , body:{content}})
+  },
+  deleteEntity : async(type:'job'|'company'| 'seeker' | 'blogPost' , id:string) : Promise<boolean>=>{
+    if(type === 'blogPost'){
+      await apiFetch(`/blog/${id}` , {method : 'DELETE'});
+      return true ; 
+    }
+    return false ; 
+  },
+  addOrUpdateReaction : async(postId : string , userId : string , type : ReactionType): Promise<BlogPost>=>{
+    return apiFetch(`/blog/${postId}/react` , {method:'POST' , body:{content}})
+  },
+  addComment : async(postId : string , content : string): Promise<BlogPost>=>{
+    return apiFetch(`/blog/${postId}/comment` , {method:'POST' , body:{content}})
+  },
+  updateComment:async(postId : string , commentId : string , content : string): Promise<BlogPost>=>{
+   return apiFetch(`/blog/${postId}/comment/${commentId}` , {method:"PUT" , body:{content}})
+  }
+  ,
+  deleteComment: async(postId: string , commentId:string ): Promise<BlogPost>=>{
+    await apiFetch(`/blog/${postId}/comment/${commentId}` , {method : 'DELETE'} );
+    return apiFetch(`/blog/${postId}` , {method  : 'GET'});
   },
 }

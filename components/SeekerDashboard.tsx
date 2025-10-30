@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Job, Company, JobSeeker, Review, JobType } from '../types';
-import JobCard from './JobCard';
-import Modal from './Modal';
-import JobDetails from './JobDetails';
-import ResumeBooster from './ResumeBooster';
-import LeaveReviewForm from './LeaveReviewForm';
-import JobSeekerProfileEdit from './JobSeekerProfileEdit';
-import { PencilIcon, MagnifyingGlassIcon } from './icons';
-import JobAlertsManager from './JobAlertsManager';
+import { Job, Company, JobSeeker, Review, JobType } from '../types.ts'; // Explicit .ts extension
+import JobCard from './JobCard.tsx'; // Explicit .tsx extension
+import Modal from './Modal.tsx'; // Explicit .tsx extension
+import JobDetails from './JobDetails.tsx'; // Explicit .tsx extension
+import ResumeBooster from './ResumeBooster.tsx'; // Explicit .tsx extension
+import LeaveReviewForm from './LeaveReviewForm.tsx'; // Explicit .tsx extension
+import JobSeekerProfileEdit from './JobSeekerProfileEdit.tsx'; // Explicit .tsx extension
+import { PencilIcon, MagnifyingGlassIcon } from './icons.tsx'; // Explicit .tsx extension
+import JobAlertsManager from './JobAlertsManager.tsx'; // Explicit .tsx extension
 
 interface SeekerDashboardProps {
   seeker: JobSeeker;
@@ -19,7 +19,8 @@ interface SeekerDashboardProps {
 
 const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, companies, onAddReview, onSaveProfile }) => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [appliedJobs, setAppliedJobs] = useState<string[]>(seeker.appliedJobs);
+  // FIX: Ensure appliedJobs state is initialized as an array, defaulting to an empty array if seeker.appliedJobs is undefined/null.
+  const [appliedJobs, setAppliedJobs] = useState<string[]>(seeker.appliedJobs ?? []);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewingCompany, setReviewingCompany] = useState<Company | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,9 +40,11 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
   };
   
   const handleApply = (jobId: string) => {
+    // appliedJobs is guaranteed to be an array here due to state initialization fix
     if (!appliedJobs.includes(jobId)) {
         const updatedAppliedJobs = [...appliedJobs, jobId];
         setAppliedJobs(updatedAppliedJobs);
+        // Ensure the updated profile data also saves an array (not undefined)
         onSaveProfile({ ...seeker, appliedJobs: updatedAppliedJobs });
     }
   };
@@ -104,7 +107,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
     <main className="container mx-auto p-4 md:p-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
-           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive relative">
+            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive relative">
               <button 
                 onClick={() => setIsEditModalOpen(true)}
                 className="absolute top-4 right-4 p-2 text-gray-500 hover:text-primary transition-colors"
@@ -155,7 +158,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
             </div>
           </div>
 
-          <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({filteredJobs.length})</h2>
+          <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({filteredJobs.length}) </h2>
           {filteredJobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredJobs.map(job => {
@@ -168,6 +171,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                       company={company}
                       onApply={handleApply}
                       onViewDetails={handleViewDetails}
+                      // appliedJobs is guaranteed to be an array here
                       isApplied={appliedJobs.includes(job.id)}
                     />
                   );
@@ -192,6 +196,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
             job={selectedJob} 
             company={selectedJobCompany}
             onApply={handleApply}
+            // appliedJobs is guaranteed to be an array here
             isApplied={appliedJobs.includes(selectedJob.id)}
             userRole="seeker"
             onLeaveReview={handleLeaveReview}

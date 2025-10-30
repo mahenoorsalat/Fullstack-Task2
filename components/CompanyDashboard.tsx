@@ -31,7 +31,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, jobs, seek
   };
   
   const getApplicants = (job: Job) => {
-    return seekers.filter(seeker => job.applicants.includes(seeker.id));
+    return seekers.filter(seeker =>( job.applicants ?? []).includes(seeker.id));
   };
 
   return (
@@ -79,7 +79,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, jobs, seek
                   onClick={() => setViewingApplicantsForJob(job)}
                   className="text-primary font-semibold hover:underline"
                 >
-                  View Applicants ({job.applicants.length})
+                  View Applicants ({job.applicants?.length ?? 0})
                 </button>
               </div>
             </div>
@@ -121,8 +121,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, jobs, seek
           title={`Applicants for ${viewingApplicantsForJob.title}`}
         >
           <div className="space-y-4">
-            {getApplicants(viewingApplicantsForJob).length > 0 ? getApplicants(viewingApplicantsForJob).map(seeker => (
-              <div key={seeker.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
+            {getApplicants(viewingApplicantsForJob).length > 0 ? getApplicants(viewingApplicantsForJob).map((seeker, index) => (
+              <div key={seeker.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
                 <img src={seeker.photoUrl} alt={seeker.name} className="h-12 w-12 rounded-full mr-4"/>
                 <div>
                   <p className="font-semibold">{seeker.name}</p>
