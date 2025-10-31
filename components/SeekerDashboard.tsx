@@ -116,8 +116,12 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                 <PencilIcon className="h-5 w-5" />
               </button>
               <h3 className="text-xl font-bold text-neutral mb-4">Welcome, {seeker.name}!</h3>
-              <img src={seeker.photoUrl} alt={seeker.name} className="h-24 w-24 rounded-full mx-auto mb-4 border-4 border-primary"/>
-              <p className="text-center text-gray-600">{seeker.email}</p>
+<img 
+
+                 src={seeker.photoUrl || 'https://placehold.co/96x96/4F46E5/FFFFFF?text=P'} 
+                 alt={seeker.name} 
+                 className="h-24 w-24 rounded-full mx-auto mb-4 border-4 border-primary"
+              />              <p className="text-center text-gray-600">{seeker.email}</p>
           </div>
           <JobAlertsManager seeker={seeker} onSave={onSaveProfile} />
           <ResumeBooster />
@@ -170,7 +174,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                       // Since we filtered above, company should exist
                       return (
                           <JobCard 
-                              key={job.id} // Ensures unique key prop
+      key={job._id || job.id}
                               job={job}
                               company={company!}
                               onApply={handleApply}
