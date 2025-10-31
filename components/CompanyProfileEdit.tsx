@@ -8,8 +8,17 @@ interface CompanyProfileEditProps {
 }
 
 const CompanyProfileEdit: React.FC<CompanyProfileEditProps> = ({ company, onSave, onCancel }) => {
-    const [formData, setFormData] = useState<Company>(company);
-    const [logoPreview, setLogoPreview] = useState<string | null>(company.logo);
+const [formData, setFormData] = useState<Company>({
+        ...company,
+        name: company.name ?? '',
+        description: company.description ?? '',
+        website: company.website ?? '',
+        email: company.email ?? '',
+        contactInfo: company.contactInfo ?? '',
+        officeAddress: company.officeAddress ?? '',
+        logo: company.logo ?? null, // logo can be null
+    });
+        const [logoPreview, setLogoPreview] = useState<string | null>(company.logo);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
