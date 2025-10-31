@@ -159,23 +159,26 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
           </div>
 
           <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({filteredJobs.length}) </h2>
+          
+          {/* FIX: Corrected ternary operator structure for JSX list rendering */}
           {filteredJobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredJobs.map(job => {
-                  const company = companies.find(c => c.id === job.companyId);
-                  if (!company) return null;
-                  return (
-                    <JobCard 
-                      key={job.id}
-                      job={job}
-                      company={company}
-                      onApply={handleApply}
-                      onViewDetails={handleViewDetails}
-                      // appliedJobs is guaranteed to be an array here
-                      isApplied={appliedJobs.includes(job.id)}
-                    />
-                  );
-                })}
+                {filteredJobs
+                    .filter(job => companies.find(c => c.id === job.companyId)) // Added filter for safer mapping
+                    .map(job => {
+                      const company = companies.find(c => c.id === job.companyId);
+                      // Since we filtered above, company should exist
+                      return (
+                          <JobCard 
+                              key={job.id} // Ensures unique key prop
+                              job={job}
+                              company={company!}
+                              onApply={handleApply}
+                              onViewDetails={handleViewDetails}
+                              isApplied={appliedJobs.includes(job.id)}
+                          />
+                      );
+                    })}
             </div>
           ) : (
             <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-xl">
