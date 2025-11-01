@@ -7,8 +7,7 @@ interface CompanyProfileEditProps {
   onCancel: () => void;
 }
 
-const DEFAULT_PLACEHOLDER_URL = 'https://via.placeholder.com/100'; // FIX: Use a correctly formatted placeholder URL
-
+const DEFAULT_PLACEHOLDER_URL = 'https://placehold.co/100';
 const CompanyProfileEdit: React.FC<CompanyProfileEditProps> = ({ company, onSave, onCancel }) => {
     const [formData, setFormData] = useState<Company>({
                 ...company,
@@ -18,7 +17,7 @@ const CompanyProfileEdit: React.FC<CompanyProfileEditProps> = ({ company, onSave
                 email: company.email ?? '',
                 contactInfo: company.contactInfo ?? '',
                 officeAddress: company.officeAddress ?? '',
-                logo: company.logo ?? null, // logo can be null
+                logo: company.logo ?? null, 
         });
             const [logoPreview, setLogoPreview] = useState<string | null>(company.logo);
 

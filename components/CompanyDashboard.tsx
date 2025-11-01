@@ -6,7 +6,7 @@ import Modal from './Modal';
 import CompanyProfileEdit from './CompanyProfileEdit';
 import PostJobForm from './PostJobForm';
 import { PencilIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
-import { api } from '../services/apiService'; 
+import { api } from '../services/apiService';
 
 interface ApplicationData {
     status: 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
@@ -61,18 +61,25 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         }
     };
 
-    useEffect(() => {
-        setLogoSrc(company.logo);
-    }, [company.logo]); 
-    
-    useEffect(() => {
-        fetchCompanyJobs();
-    }, [company.id]); 
+ useEffect(() => {
+        setLogoSrc(company.logo);
+    }, [company.logo]); 
+    
+    useEffect(() => {
+        fetchCompanyJobs();
+    }, [company.id]); 
 
-    const handleSaveProfile = (updatedCompany: Company) => {
-        onSaveProfile(updatedCompany);
-        setIsEditModalOpen(false);
-    };
+    // FIX APPLIED HERE 👇
+    const handleSaveProfile = (updatedCompany: Company) => {
+        // 1. Update the local state (logoSrc) immediately with the new Base64 string from the form.
+        setLogoSrc(updatedCompany.logo); // <-- ADD THIS LINE
+        
+        // 2. Call the parent function (which must handle the API call to save to the database).
+        onSaveProfile(updatedCompany); 
+        
+        // 3. Close the modal.
+        setIsEditModalOpen(false);
+    };
 
     const handleSaveJob = (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
         onSaveJob(job);
@@ -91,15 +98,16 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                     <PencilIcon className="h-5 w-5" />
                 </button>
                 <div className="flex items-center">
-                    <img 
+                  <img 
                         src={logoSrc} 
                         alt={company.name} 
                         className="h-24 w-24 rounded-full mr-6 border-4 border-secondary"
                         onError={(e) => {
+                            // If the actual logo fails, switch only the image element's src to the default path
                             if (e.currentTarget.src !== DEFAULT_LOGO_URL) {
                                 e.currentTarget.onerror = null; // prevents looping
                                 e.currentTarget.src = DEFAULT_LOGO_URL;
-                                setLogoSrc(DEFAULT_LOGO_URL); 
+                                // DO NOT call setLogoSrc(DEFAULT_LOGO_URL) here.
                             }
                         }}
                     />
