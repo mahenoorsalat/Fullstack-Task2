@@ -105,4 +105,9 @@ export interface BlogPost {
   timestamp: string;
   reactions: Reaction[];
   comments: Comment[];
+  // ADDITIONS for Company Profile Data
+  companyDescription?: string;
+  companyWebsite?: string;
+  companyContactInfo?: string;
+  companyOfficeAddress?: string;
 }
