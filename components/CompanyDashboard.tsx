@@ -1,3 +1,5 @@
+// mahenoorsalat/fullstack-task2/Fullstack-Task2-195e396a8c3d9721ee90765c2fd6eff93c3eab1b/components/CompanyDashboard.tsx
+
 import React, { useState, useEffect } from 'react'; // ADDED useEffect
 import { Company, Job, JobSeeker } from '../types';
 import Modal from './Modal';
@@ -5,6 +7,14 @@ import CompanyProfileEdit from './CompanyProfileEdit';
 import PostJobForm from './PostJobForm';
 import { PencilIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
 import { api } from '../services/apiService'; // ADDED api import
+
+// Define a type for the fetched application data (adjust if your backend returns a different structure)
+interface ApplicationData {
+    status: 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
+    jobId: string;
+    seekerId: JobSeeker; // Populated seeker details
+    // Add other fields from ApplicationModel if needed
+}
 
 interface CompanyDashboardProps {
   company: Company;
@@ -21,6 +31,10 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
 
   // NEW STATE: Manage company jobs locally
   const [companyJobs, setCompanyJobs] = useState<Job[]>([]);
+
+    // NEW STATE: Manage fetched applications and loading state
+    const [jobApplications, setJobApplications] = useState<ApplicationData[]>([]);
+    const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
   
   // NEW FUNCTION: Dedicated fetch for company jobs
   const fetchCompanyJobs = async () => {
@@ -32,6 +46,23 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
       console.error("Failed to fetch company jobs:", error);
     }
   };
+
+    // NEW FUNCTION: Fetch applications for a specific job from the backend
+    const fetchApplicationsForJob = async (job: Job) => {
+        setIsLoadingApplicants(true);
+        setJobApplications([]); // Clear previous applications
+        setViewingApplicantsForJob(job);
+        try {
+            // ASSUMING api.getApplicationsForJob(jobId) is a function that calls GET /api/applications/job/:jobId
+            // You may need to ensure your apiService has a getApplicationsForJob function.
+            const applications = await api.getApplicationsForJob(job.id); 
+            setJobApplications(applications);
+        } catch (error) {
+            console.error(`Failed to fetch applications for job ${job.id}:`, error);
+        } finally {
+            setIsLoadingApplicants(false);
+        }
+    };
 
   // NEW EFFECT: Fetch jobs on mount/company change
   useEffect(() => {
@@ -53,9 +84,10 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     fetchCompanyJobs();
   };
   
-  const getApplicants = (job: Job) => {
-    return seekers.filter(seeker =>( job.applicants ?? []).includes(seeker.id));
-  };
+    // REMOVED the old getApplicants function as it is no longer used for fetching.
+    /* const getApplicants = (job: Job) => {
+        return seekers.filter(seeker =>( job.applicants ?? []).includes(seeker.id));
+    }; */
 
   return (
     <main className="container mx-auto p-4 md:p-8 space-y-8">
@@ -99,7 +131,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                   <p className="text-sm text-gray-500">{job.location}</p>
                 </div>
                 <button 
-                  onClick={() => setViewingApplicantsForJob(job)}
+                  onClick={() => fetchApplicationsForJob(job)} // UPDATED: Call the new fetch function
                   className="text-primary font-semibold hover:underline"
                 >
                   View Applicants ({job.applicants?.length ?? 0})
@@ -140,20 +172,39 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     {viewingApplicantsForJob && (
         <Modal
           isOpen={!!viewingApplicantsForJob}
-          onClose={() => setViewingApplicantsForJob(null)}
+          onClose={() => {
+                setViewingApplicantsForJob(null)
+                setJobApplications([]) // Clear applications when closing
+            }}
           title={`Applicants for ${viewingApplicantsForJob.title}`}
         >
           <div className="space-y-4">
-            {getApplicants(viewingApplicantsForJob).length > 0 ? getApplicants(viewingApplicantsForJob).map((seeker, index) => (
-              <div key={seeker.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <img src={seeker.photoUrl} alt={seeker.name} className="h-12 w-12 rounded-full mr-4"/>
-                <div>
-                  <p className="font-semibold">{seeker.name}</p>
-                  <p className="text-sm text-gray-600">{seeker.email}</p>
-                  <a href={seeker.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">View Resume</a>
-                </div>
-              </div>
-            )) : <p>No applicants yet for this position.</p>}
+                {isLoadingApplicants ? (
+                    <p>Loading applicants...</p>
+                ) : jobApplications.length > 0 ? (
+                    <>
+                        <h4 className="font-bold text-neutral">{jobApplications.length} Applications Found</h4>
+                        {jobApplications.map((application, index) => (
+                            // Use application.seekerId as the populated object from the backend
+                            <div key={application.seekerId.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <img src={application.seekerId.photoUrl} alt={application.seekerId.name} className="h-12 w-12 rounded-full mr-4"/>
+                                <div>
+                                    <p className="font-semibold">{application.seekerId.name} <span className="text-xs text-secondary ml-2">({application.status})</span></p>
+                                    <p className="text-sm text-gray-600">{application.seekerId.email}</p>
+                                    
+                                    {/* FIX: Conditionally render the link only if resumeUrl exists */}
+                                    {application.seekerId.resumeUrl ? (
+                                        <a href={application.seekerId.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">View Resume</a>
+                                    ) : (
+                                        <p className="text-sm text-gray-400">Resume not uploaded</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <p>No applicants yet for this position.</p>
+                )}
           </div>
         </Modal>
       )}
