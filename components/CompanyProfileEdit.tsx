@@ -19,7 +19,9 @@ const CompanyProfileEdit: React.FC<CompanyProfileEditProps> = ({ company, onSave
                 officeAddress: company.officeAddress ?? '',
                 logo: company.logo ?? null, 
         });
-            const [logoPreview, setLogoPreview] = useState<string | null>(company.logo);
+    
+    const initialLogo = company.logo || (company as any).photoUrl;
+    const [logoPreview, setLogoPreview] = useState<string | null>(initialLogo);
 
         const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
             const { name, value } = e.target;

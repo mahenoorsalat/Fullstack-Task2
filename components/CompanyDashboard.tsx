@@ -1,5 +1,3 @@
-// mahenoorsalat/fullstack-task2/Fullstack-Task2-195e396a8c3d9721ee90765c2fd6eff93c3eab1b/components/CompanyDashboard.tsx
-
 import React, { useState, useEffect } from 'react'; 
 import { Company, Job, JobSeeker } from '../types';
 import Modal from './Modal';
@@ -29,7 +27,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
     const [viewingApplicantsForJob, setViewingApplicantsForJob] = useState<Job | null>(null);
 
-    const [logoSrc, setLogoSrc] = useState(company.logo);
+    const initialLogo = company.logo || (company as any).photoUrl;
+    const [logoSrc, setLogoSrc] = useState(initialLogo);
 
     const [companyJobs, setCompanyJobs] = useState<Job[]>([]);
 
@@ -62,22 +61,19 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     };
 
  useEffect(() => {
-        setLogoSrc(company.logo);
-    }, [company.logo]); 
+    const newLogo = company.logo || (company as any).photoUrl;
+    setLogoSrc(newLogo);
+    }, [company.logo, (company as any).photoUrl]); 
     
     useEffect(() => {
         fetchCompanyJobs();
     }, [company.id]); 
 
-    // FIX APPLIED HERE 👇
     const handleSaveProfile = (updatedCompany: Company) => {
-        // 1. Update the local state (logoSrc) immediately with the new Base64 string from the form.
-        setLogoSrc(updatedCompany.logo); // <-- ADD THIS LINE
+        setLogoSrc(updatedCompany.logo); 
         
-        // 2. Call the parent function (which must handle the API call to save to the database).
         onSaveProfile(updatedCompany); 
         
-        // 3. Close the modal.
         setIsEditModalOpen(false);
     };
 
@@ -86,7 +82,6 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         setIsPostJobModalOpen(false);
         fetchCompanyJobs();
     };
-    
     return (
         <main className="container mx-auto p-4 md:p-8 space-y-8">
             <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive relative">
