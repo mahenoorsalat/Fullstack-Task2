@@ -189,11 +189,13 @@ const PostCard: React.FC<PostCardProps> = ({
                       autoFocus
                     />
                     <div className="flex justify-end space-x-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingComment(null)}
-                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors"
-                      >
+                    <button
+                        type="button"
+                        onClick={() => { 
+                          setEditingComment(null);
+                          setEditedCommentContent('');
+                        }}
+                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors">
                         Cancel
                       </button>
                       <button
