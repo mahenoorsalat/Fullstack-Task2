@@ -42,14 +42,24 @@ export const api = {
         throw new Error('Registration Failed: no token received');
       },
 
-      logout: async (): Promise<void>=>{
-        localStorage.removeItem('token');
-        return Promise.resolve();
+    logout: async (): Promise<void>=>{
+        localStorage.removeItem('userToken'); 
+        return Promise.resolve();
+    },
 
-      },
-      getUserProfile : async(uid:string) : Promise<{user: User , role : UserRole} | null>=>{
-        return null
-      } , 
+    getUserProfile : async(uid:string) : Promise<{user: User , role : UserRole} | null>=>{
+        try {
+            const user = await api.getProfile(); 
+            if (user) {
+                return { user: user as User, role: user.role as UserRole };
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to fetch user profile for re-hydration:", error);
+            await api.logout(); 
+            return null;
+        }
+    } ,
     getSeekers: async() : Promise<JobSeeker[]>=>{
         return apiFetch('/user?role=seeker' , { method : 'GET'})
       },
