@@ -94,13 +94,21 @@ const PostCard: React.FC<PostCardProps> = ({
     setIsSubmittingComment(false);
   };
 
-  const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
+const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingComment || !editedCommentContent.trim() || !post.id) return;
-    await onUpdateComment(post.id, editingComment.id, editedCommentContent);
+    
+    try {
+        await onUpdateComment(post.id, editingComment.id, editedCommentContent);
+    } catch (error) {
+        console.error("Comment Update Failed:", error);
+        // You might want to show a notification here
+    }
+    
+    // Always attempt to close the form after the attempt (or rely on success only)
     setEditingComment(null);
     setEditedCommentContent('');
-  };
+};
 
   return (
     <div className="bg-white/80 backdrop-blur-sm p-5 rounded-xl shadow-interactive hover:shadow-interactive-lg hover:-translate-y-1 transition-transform-shadow duration-300 flex flex-col space-y-4 animate-fade-in-up">
@@ -213,25 +221,25 @@ const PostCard: React.FC<PostCardProps> = ({
                         <p className="font-semibold text-sm text-neutral">{comment.authorName}</p>
                         <p className="text-xs text-gray-500">· {new Date(comment.timestamp).toLocaleString()}</p>
                       </div>
-                      {currentUserRole === 'admin' && (
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={() => {
-                              setEditingComment(comment);
-                              setEditedCommentContent(comment.content);
-                            }}
-                            className="text-gray-400 hover:text-primary p-1 rounded-full text-xs"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => onDeleteCommentClick(comment)}
-                            className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
+                    {(currentUserRole === 'admin' || comment.authorId === currentUserId) && (
+    <div className="flex items-center space-x-1">
+        <button
+            onClick={() => {
+                setEditingComment(comment);
+                setEditedCommentContent(comment.content);
+            }}
+            className="text-gray-400 hover:text-primary p-1 rounded-full text-xs"
+        >
+            <PencilIcon className="h-4 w-4" />
+        </button>
+        <button
+            onClick={() => onDeleteCommentClick(comment)}
+            className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
+        >
+            <TrashIcon className="h-4 w-4" />
+        </button>
+    </div>
+)}
                     </div>
                     <p className="text-sm text-gray-800 mt-1">{comment.content}</p>
                   </>

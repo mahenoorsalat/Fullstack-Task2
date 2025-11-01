@@ -15,12 +15,16 @@ interface SeekerDashboardProps {
   companies: Company[];
   onAddReview: (companyId: string, review: Omit<Review, 'id' | 'date' | 'authorId'>) => void;
   onSaveProfile: (updatedSeeker: JobSeeker) => void;
+  // NEW PROP: Function to handle the job application API call
+  onApplyJob: (jobId: string) => void; 
 }
 
-const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, companies, onAddReview, onSaveProfile }) => {
+const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, companies, onAddReview, onSaveProfile, onApplyJob }) => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  // FIX: Ensure appliedJobs state is initialized as an array, defaulting to an empty array if seeker.appliedJobs is undefined/null.
-  const [appliedJobs, setAppliedJobs] = useState<string[]>(seeker.appliedJobs ?? []);
+  
+  // FIX: Removed local state (setAppliedJobs). Use seeker prop directly as source of truth.
+  const appliedJobs = seeker.appliedJobs ?? [];
+
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewingCompany, setReviewingCompany] = useState<Company | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -40,12 +44,9 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
   };
   
   const handleApply = (jobId: string) => {
-    // appliedJobs is guaranteed to be an array here due to state initialization fix
+    // FIX: Call the parent's API handler (onApplyJob) and let the parent update the seeker state.
     if (!appliedJobs.includes(jobId)) {
-        const updatedAppliedJobs = [...appliedJobs, jobId];
-        setAppliedJobs(updatedAppliedJobs);
-        // Ensure the updated profile data also saves an array (not undefined)
-        onSaveProfile({ ...seeker, appliedJobs: updatedAppliedJobs });
+        onApplyJob(jobId);
     }
   };
 
@@ -164,21 +165,20 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
 
           <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({filteredJobs.length}) </h2>
           
-          {/* FIX: Corrected ternary operator structure for JSX list rendering */}
           {filteredJobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredJobs
-                    .filter(job => companies.find(c => c.id === job.companyId)) // Added filter for safer mapping
+                    .filter(job => companies.find(c => c.id === job.companyId))
                     .map(job => {
                       const company = companies.find(c => c.id === job.companyId);
-                      // Since we filtered above, company should exist
                       return (
                           <JobCard 
-      key={job._id || job.id}
+                              key={job._id || job.id}
                               job={job}
                               company={company!}
                               onApply={handleApply}
                               onViewDetails={handleViewDetails}
+                              // FIX: Use the appliedJobs derived directly from the seeker prop
                               isApplied={appliedJobs.includes(job.id)}
                           />
                       );
@@ -203,7 +203,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
             job={selectedJob} 
             company={selectedJobCompany}
             onApply={handleApply}
-            // appliedJobs is guaranteed to be an array here
+            // FIX: Use the appliedJobs derived directly from the seeker prop
             isApplied={appliedJobs.includes(selectedJob.id)}
             userRole="seeker"
             onLeaveReview={handleLeaveReview}

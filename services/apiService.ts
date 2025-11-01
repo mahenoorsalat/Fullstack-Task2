@@ -111,4 +111,7 @@ export const api = {
         await apiFetch(`/blog/${postId}/comment/${commentId}` , {method : 'DELETE'} );
         return apiFetch(`/blog/${postId}` , {method  : 'GET'});
       },
+    getApplicationsForJob: async (jobId: string): Promise<Application[]> => {
+    return apiFetch(`/applications/job/${jobId}`, { method: 'GET' });
+},
 }
