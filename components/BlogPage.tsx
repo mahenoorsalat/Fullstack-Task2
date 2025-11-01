@@ -352,40 +352,42 @@ const BlogPage: React.FC<BlogPageProps> = ({
           </form>
         </div>
 
-        {/* Posts Feed */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-neutral">Community Feed</h2>
-          {posts.length > 0 ? (
-            posts.map((post, index) => {
-              const isNew =
-                index === 0 && new Date().getTime() - new Date(post.timestamp).getTime() < 5 * 60 * 1000;
-              return (
-                <PostCard
-                  key={post.id ?? `post-${index}`}
-                  post={post}
-                  currentUserId={currentUserId}
-                  currentUserRole={currentUserRole}
-                  currentUserPhoto={currentUserPhoto}
-                  onEdit={() => {
-                    setEditingPost(post);
-                    setEditedContent(post.content);
-                  }}
-                  onDelete={() => setDeletingPost(post)}
-                  onReaction={onPostReaction}
-                  onAddComment={onAddComment}
-                  onUpdateComment={onUpdateComment}
-                  onDeleteCommentClick={(comment) => setDeletingCommentInfo({ postId: post.id, comment })}
-                  isNew={isNew}
-                />
-              );
-            })
-          ) : (
-            <div className="text-center text-gray-500 py-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-interactive">
-              <p>No posts yet.</p>
-              <p>Be the first to share your thoughts!</p>
-            </div>
-          )}
-        </div>
+      {/* Posts Feed */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-neutral">Community Feed</h2>
+         {posts.length > 0 ? (
+  posts
+    .filter(post => post.id) // Keep this filter to ensure ID exists
+    .map((post, index) => {
+      const isNew =
+        index === 0 && new Date().getTime() - new Date(post.timestamp).getTime() < 5 * 60 * 1000;
+      return (
+        <PostCard
+          key={post.id}
+          post={post}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          currentUserPhoto={currentUserPhoto}
+          onEdit={() => {
+            setEditingPost(post);
+            setEditedContent(post.content);
+          }}
+          onDelete={() => setDeletingPost(post)}
+          onReaction={onPostReaction} 
+          onAddComment={onAddComment}
+          onUpdateComment={onUpdateComment}
+          onDeleteCommentClick={(comment) => setDeletingCommentInfo({ postId: post.id, comment })}
+          isNew={isNew}
+        />
+      );
+    })
+) :(
+            <div className="text-center text-gray-500 py-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-interactive">
+              <p>No posts yet.</p>
+              <p>Be the first to share your thoughts!</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals (unchanged) */}

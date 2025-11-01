@@ -95,10 +95,9 @@ getSeekers: async() : Promise<JobSeeker[]>=>{
     }
     return false ; 
   },
-  // FIXED: The body was incorrectly passing 'content', now passes 'type'
-  addOrUpdateReaction : async(postId : string , userId : string , type : ReactionType): Promise<BlogPost>=>{
-    return apiFetch(`/blog/${postId}/react` , {method:'POST' , body:{type}}) 
-  },
+addOrUpdateReaction : async(postId : string , userId : string , type : ReactionType): Promise<BlogPost>=>{
+  return apiFetch(`/blog/${postId}/react` , {method:'PUT' , body:{type}}) 
+},
   addComment : async(postId : string , content : string): Promise<BlogPost>=>{
     return apiFetch(`/blog/${postId}/comment` , {method:'POST' , body:{content}})
   },
