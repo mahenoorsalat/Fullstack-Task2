@@ -12,19 +12,20 @@ import { api } from '../services/apiService'; // ADDED api import
 interface ApplicationData {
     status: 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
     jobId: string;
+    // Assuming the full Application document is returned, including its own ID
+    _id: string; 
     seekerId: JobSeeker; // Populated seeker details
     // Add other fields from ApplicationModel if needed
 }
 
 interface CompanyDashboardProps {
   company: Company;
-  // REMOVED: jobs: Job[]; // Jobs are now fetched locally
   seekers: JobSeeker[];
   onSaveProfile: (updatedCompany: Company) => void;
   onSaveJob: (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => void;
 }
 
-const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, onSaveProfile, onSaveJob }) => { // Removed jobs from destructuring
+const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, onSaveProfile, onSaveJob }) => { 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
   const [viewingApplicantsForJob, setViewingApplicantsForJob] = useState<Job | null>(null);
@@ -36,10 +37,10 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     const [jobApplications, setJobApplications] = useState<ApplicationData[]>([]);
     const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
   
-  // NEW FUNCTION: Dedicated fetch for company jobs
+  // FUNCTION: Dedicated fetch for company jobs
   const fetchCompanyJobs = async () => {
     try {
-      // Calls the new API function
+      // Calls the new API function to get the latest jobs list with correct applicant counts
       const jobs = await api.getCompanyJobs(); 
       setCompanyJobs(jobs);
     } catch (error) {
@@ -47,14 +48,15 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
     }
   };
 
-    // NEW FUNCTION: Fetch applications for a specific job from the backend
-    const fetchApplicationsForJob = async (job: Job) => {
+    // FUNCTION: Fetch applications for a specific job from the backend
+  const fetchApplicationsForJob = async (job: Job) => {
         setIsLoadingApplicants(true);
-        setJobApplications([]); // Clear previous applications
+        setJobApplications([]); 
         setViewingApplicantsForJob(job);
+
+        await fetchCompanyJobs();
         try {
-            // ASSUMING api.getApplicationsForJob(jobId) is a function that calls GET /api/applications/job/:jobId
-            // You may need to ensure your apiService has a getApplicationsForJob function.
+            // API call to GET /api/applications/job/:jobId to fetch applications with status
             const applications = await api.getApplicationsForJob(job.id); 
             setJobApplications(applications);
         } catch (error) {
@@ -64,31 +66,23 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         }
     };
 
-  // NEW EFFECT: Fetch jobs on mount/company change
+  // EFFECT: Fetch jobs on mount/company change
   useEffect(() => {
     fetchCompanyJobs();
   }, [company.id]); // Re-run if company ID changes
 
-  // REMOVED: const companyJobs = jobs.filter(job => job.companyId === company.id);
-
   const handleSaveProfile = (updatedCompany: Company) => {
     onSaveProfile(updatedCompany);
     setIsEditModalOpen(false);
-    // The useEffect above handles re-fetching jobs if the profile save triggers an outer re-render
   };
 
   const handleSaveJob = (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
     onSaveJob(job);
     setIsPostJobModalOpen(false);
-    // CRITICAL FIX: Manually re-fetch the job list after a successful post
+    // IMPORTANT: Manually re-fetch the job list after a successful post to update the dashboard count
     fetchCompanyJobs();
   };
   
-    // REMOVED the old getApplicants function as it is no longer used for fetching.
-    /* const getApplicants = (job: Job) => {
-        return seekers.filter(seeker =>( job.applicants ?? []).includes(seeker.id));
-    }; */
-
   return (
     <main className="container mx-auto p-4 md:p-8 space-y-8">
       <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive relative">
@@ -174,7 +168,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
           isOpen={!!viewingApplicantsForJob}
           onClose={() => {
                 setViewingApplicantsForJob(null)
-                setJobApplications([]) // Clear applications when closing
+                setJobApplications([])
             }}
           title={`Applicants for ${viewingApplicantsForJob.title}`}
         >
@@ -183,17 +177,17 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                     <p>Loading applicants...</p>
                 ) : jobApplications.length > 0 ? (
                     <>
+                        {/* The number of applications is now explicitly displayed here: */}
                         <h4 className="font-bold text-neutral">{jobApplications.length} Applications Found</h4>
-                        {jobApplications.map((application, index) => (
-                            // Use application.seekerId as the populated object from the backend
-                            <div key={application.seekerId.id || index} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        {jobApplications.map((application) => (
+                            <div key={application._id || application.seekerId.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
                                 <img src={application.seekerId.photoUrl} alt={application.seekerId.name} className="h-12 w-12 rounded-full mr-4"/>
                                 <div>
                                     <p className="font-semibold">{application.seekerId.name} <span className="text-xs text-secondary ml-2">({application.status})</span></p>
                                     <p className="text-sm text-gray-600">{application.seekerId.email}</p>
                                     
-                                    {/* FIX: Conditionally render the link only if resumeUrl exists */}
-                                    {application.seekerId.resumeUrl ? (
+                                    {/* FIX: Conditionally render the link only if resumeUrl is not null, undefined, OR an empty string */}
+                                    {application.seekerId.resumeUrl && application.seekerId.resumeUrl.trim() !== '' ? (
                                         <a href={application.seekerId.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">View Resume</a>
                                     ) : (
                                         <p className="text-sm text-gray-400">Resume not uploaded</p>
