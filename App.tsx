@@ -116,36 +116,25 @@ const handleApplyJob = async (jobId: string) => {
         setNotification("Must be logged in as a Seeker to apply.");
         return;
     }
-
+    
     const currentSeeker = currentUser as JobSeeker;
     const currentAppliedJobs = currentSeeker.appliedJobs ?? [];
-
     if (currentAppliedJobs.includes(jobId)) {
         setNotification("You have already applied to this job.");
         return;
     }
 
     try {
-        const updatedAppliedJobs = [...currentAppliedJobs, jobId];
+        await api.applyToJob(jobId); 
         
-        // Construct the updated seeker object
-        const updatedSeeker: JobSeeker = {
-            ...currentSeeker,
-            appliedJobs: updatedAppliedJobs
-        };
-        
-        // Call API to save the seeker profile (This is where the backend application/profile update happens)
-        const savedSeeker = await api.saveSeeker(updatedSeeker); 
+        const updatedUser = await api.getProfile(); 
 
-        // Update application state (This is the crucial step to fix the "apply all" bug)
-        setSeekers(seekers.map(s => s.id === savedSeeker.id ? savedSeeker : s));
-        setCurrentUser(savedSeeker);
+        setSeekers(seekers.map(s => s.id === updatedUser.id ? updatedUser : s));
+        setCurrentUser(updatedUser);
         
-        // Persist the updated user object (Crucial for page reloads)
-        localStorage.setItem('user', JSON.stringify(savedSeeker)); 
+        localStorage.setItem('user', JSON.stringify(updatedUser)); 
 
         setNotification("Job application successful!");
-
     } catch (error: any) {
         setNotification(`Job application failed: ${error.message}`);
     }

@@ -102,10 +102,8 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
         await onUpdateComment(post.id, editingComment.id, editedCommentContent);
     } catch (error) {
         console.error("Comment Update Failed:", error);
-        // You might want to show a notification here
     }
     
-    // Always attempt to close the form after the attempt (or rely on success only)
     setEditingComment(null);
     setEditedCommentContent('');
 };

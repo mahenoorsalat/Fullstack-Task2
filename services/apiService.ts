@@ -63,7 +63,12 @@ export const api = {
       getCompanyJobs: async (): Promise<Job[]> => {
         return apiFetch('/jobs/employer/jobs', { method: 'GET' });
       },
-
+applyToJob: async (jobId: string): Promise<any> => {
+        return apiFetch(`/applications/job/${jobId}`, { method: 'POST' }); 
+    },
+    getProfile: async (): Promise<User> => {
+        return apiFetch('/auth/profile', { method: 'GET' }); 
+    },
       saveSeeker:async(seekerData: JobSeeker) : Promise<JobSeeker>=>{
         return apiFetch('/auth/profile' , {method : 'PUT' , body : seekerData})
       },
