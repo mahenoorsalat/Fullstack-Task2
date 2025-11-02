@@ -76,8 +76,21 @@ export const api = {
 applyToJob: async (jobId: string): Promise<any> => {
         return apiFetch(`/applications/job/${jobId}`, { method: 'POST' }); 
     },
-    getProfile: async (): Promise<User> => {
-        return apiFetch('/auth/profile', { method: 'GET' }); 
+  getProfile: async (): Promise<User> => {
+        const user = await apiFetch('/auth/profile', { method: 'GET' }); 
+        
+        if (user.role === 'company') {
+            const companyUser = user as Company;
+
+            const robustName = companyUser.name || companyUser.description || companyUser.website;
+
+            if (robustName) {
+                companyUser.name = robustName;
+            }
+        }
+      
+
+        return user; 
     },
       saveSeeker:async(seekerData: JobSeeker) : Promise<JobSeeker>=>{
         return apiFetch('/auth/profile' , {method : 'PUT' , body : seekerData})

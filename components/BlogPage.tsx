@@ -344,11 +344,23 @@ const BlogPage: React.FC<BlogPageProps> = ({
   return (
     <main className="container mx-auto p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        {/* Create Post */}
+   {/* Create Post */}
         <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive mb-8">
           <form onSubmit={handleSubmit} className="flex space-x-4 items-start">
             <img src={currentUserPhoto} alt={currentUserName} className="h-12 w-12 rounded-full object-cover" />
             <div className="flex-grow">
+                {/* 💡 INSERTED: Display the current user's name/profile name
+                  This name is already correctly set to the company name/fallback in the backend controller.
+                */}
+                <div className="mb-2">
+                <p className="font-bold text-lg text-neutral">
+                  {currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile')}
+                </p>
+                    {currentUserRole === 'company' && (
+                        <span className="text-sm text-gray-500">Posting as Company</span>
+                    )}
+                </div>
+                {/* END INSERTED CODE */}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
