@@ -102,10 +102,10 @@ export interface BlogPost {
   authorRole: 'seeker' | 'company' | 'admin';
   authorPhotoUrl: string;
   content: string;
+  imageUrl?: string; 
   timestamp: string;
   reactions: Reaction[];
   comments: Comment[];
-  // ADDITIONS for Company Profile Data
   companyDescription?: string;
   companyWebsite?: string;
   companyContactInfo?: string;
