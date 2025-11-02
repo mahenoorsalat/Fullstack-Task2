@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { BlogPost, ReactionType, Comment } from '../types';
+import React, { useState, useMemo, useEffect } from 'react'; 
+import { BlogPost, ReactionType, Comment, Company, JobSeeker } from '../types';
 import Modal from './Modal';
+import { api } from '../services/apiService'; // Import the API service
 import {
   PencilIcon,
   TrashIcon,
@@ -137,14 +138,13 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
             )}
           </div>
           
-          {/* 💡 FIX: Added image rendering logic here */}
-          {post.imageUrl && (
-            <img 
-              src={post.imageUrl} 
-              alt={`Image for ${post.authorName}'s post`} 
-              className="w-full h-auto max-h-96 object-cover rounded-lg my-4" 
-            />
-          )}
+          {post.imageUrl && (
+            <img 
+              src={post.imageUrl} 
+              alt={`Image for ${post.authorName}'s post`} 
+              className="w-full h-auto max-h-96 object-cover rounded-lg my-4" 
+            />
+          )}
 
           <p className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</p>
         </div>
@@ -308,6 +308,56 @@ const BlogPage: React.FC<BlogPageProps> = ({
   const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
   const [deletingCommentInfo, setDeletingCommentInfo] = useState<{ postId: string; comment: Comment } | null>(null);
 
+  // 1. State for locally fetched profile data
+  const [localProfile, setLocalProfile] = useState<Company | JobSeeker | null>(null); 
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+
+// 2. Effect to fetch profile if the user is a company
+useEffect(() => {
+    if (currentUserRole === 'company' && currentUserId) {
+      setIsProfileLoading(true);
+      const fetchLocalProfile = async () => {
+        try {
+          // Using the correct function: api.getProfile()
+          const data = await api.getProfile();
+          setLocalProfile(data as Company); 
+        } catch (error) {
+          console.error('Error fetching real company profile for blog:', error);
+        } finally {
+          setIsProfileLoading(false);
+        }
+      };
+      fetchLocalProfile();
+    } else {
+      // If not a company, clear the local profile state
+      setLocalProfile(null);
+      setIsProfileLoading(false);
+    }
+  }, [currentUserId, currentUserRole]);
+
+// 3. Compute the definitive name and photo URL for the 'Create Post' box
+const displayedName = useMemo(() => {
+    // Use the locally fetched profile data first (if available and loaded)
+    if (currentUserRole === 'company' && localProfile) {
+      const companyProfile = localProfile as Company;
+      // Use the robust name which your apiService already calculates
+      return companyProfile.name || 'Your Company Profile';
+    }
+    // Fallback to the name passed in via props
+    return currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile');
+  }, [localProfile, currentUserName, currentUserRole]);
+
+// FIX: Correctly access the 'logo' property from the Company interface.
+const displayedPhoto = useMemo(() => {
+    if (currentUserRole === 'company' && localProfile) {
+      const companyProfile = localProfile as Company;
+      // Use 'logo' (the correct company property), falling back to the prop's photo URL.
+      return companyProfile.logo || currentUserPhoto;
+    }
+    // Fallback to prop for other roles or if fetching failed
+    return currentUserPhoto;
+  }, [localProfile, currentUserPhoto, currentUserRole]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
@@ -347,35 +397,38 @@ const BlogPage: React.FC<BlogPageProps> = ({
    {/* Create Post */}
         <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive mb-8">
           <form onSubmit={handleSubmit} className="flex space-x-4 items-start">
-            {/* 🐛 FIX: Corrected image source to use the currentUserPhoto prop with a fallback */}
-            <img 
-              src={currentUserPhoto || 'https://placehold.co/48x48/4F46E5/FFFFFF?text=P'} 
-              alt={currentUserName || "Profile Picture"} 
-              className="h-12 w-12 rounded-full object-cover" 
-            />
+            {/* Use loading state or the correct photo */}
+            {isProfileLoading ? (
+              <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0"></div>
+            ) : (
+              <img 
+                src={displayedPhoto || 'https://placehold.co/48x48/4F46E5/FFFFFF?text=P'} 
+                alt={displayedName || "Profile Picture"} 
+                className="h-12 w-12 rounded-full object-cover flex-shrink-0" 
+              />
+            )}
             <div className="flex-grow">
-                {/* 💡 Display the current user's name/profile name */}
+                {/* Display the resolved name */}
                 <div className="mb-2">
                 <p className="font-bold text-lg text-neutral">
-                  {currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile')}
+                  {isProfileLoading ? 'Loading Profile...' : displayedName}
                 </p>
                     {currentUserRole === 'company' && (
                         <span className="text-sm text-gray-500">Posting as Company</span>
                     )}
                 </div>
-                {/* END INSERTED CODE */}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Share your thoughts..."
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
                 rows={3}
-                disabled={isPosting}
+                disabled={isPosting || isProfileLoading}
               />
               <div className="flex justify-end mt-2">
                 <button
                   type="submit"
-                  disabled={isPosting || !content.trim()}
+                  disabled={isPosting || !content.trim() || isProfileLoading}
                   className="bg-primary hover:bg-primary-focus text-white font-bold py-2 px-6 rounded-md transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {isPosting ? 'Posting...' : 'Post'}
