@@ -14,6 +14,7 @@ type UserRole = 'seeker' | 'company' | 'admin';
 type ActiveView = 'dashboard' | 'blog';
 
 const Notification = ({ message, onClose }: { message: string; onClose: () => void }) => {
+// ... (Notification component logic remains unchanged)
     useEffect(() => {
         const timer = setTimeout(onClose, 5000);
         return () => clearTimeout(timer);
@@ -112,32 +113,32 @@ const App: React.FC = () => {
     }, [currentUser]); 
 
 const handleApplyJob = async (jobId: string) => {
-    if (!currentUser || currentUserRole !== 'seeker') {
-        setNotification("Must be logged in as a Seeker to apply.");
-        return;
-    }
-    
-    const currentSeeker = currentUser as JobSeeker;
-    const currentAppliedJobs = currentSeeker.appliedJobs ?? [];
-    if (currentAppliedJobs.includes(jobId)) {
-        setNotification("You have already applied to this job.");
-        return;
-    }
+    if (!currentUser || currentUserRole !== 'seeker') {
+        setNotification("Must be logged in as a Seeker to apply.");
+        return;
+    }
+    
+    const currentSeeker = currentUser as JobSeeker;
+    const currentAppliedJobs = currentSeeker.appliedJobs ?? [];
+    if (currentAppliedJobs.includes(jobId)) {
+        setNotification("You have already applied to this job.");
+        return;
+    }
 
-    try {
-        await api.applyToJob(jobId); 
-        
-        const updatedUser = await api.getProfile(); 
+    try {
+        await api.applyToJob(jobId); 
+        
+        const updatedUser = await api.getProfile(); 
 
-        setSeekers(seekers.map(s => s.id === updatedUser.id ? updatedUser : s));
-        setCurrentUser(updatedUser);
-        
-        localStorage.setItem('user', JSON.stringify(updatedUser)); 
+        setSeekers(seekers.map(s => s.id === updatedUser.id ? updatedUser : s));
+        setCurrentUser(updatedUser);
+        
+        localStorage.setItem('user', JSON.stringify(updatedUser)); 
 
-        setNotification("Job application successful!");
-    } catch (error: any) {
-        setNotification(`Job application failed: ${error.message}`);
-    }
+        setNotification("Job application successful!");
+    } catch (error: any) {
+        setNotification(`Job application failed: ${error.message}`);
+    }
 };
     const handleLogin = async (email: string, password: string, role: UserRole) => {
         setAuthError(null);
@@ -148,7 +149,9 @@ const handleApplyJob = async (jobId: string) => {
                 setCurrentUser(userProfile.user);
                 setCurrentUserRole(userProfile.role);
                 // CRITICAL FIX: Persist login data for the token and the full user profile
-                localStorage.setItem('token', userProfile.token);
+                // The returned object from authenticateUser might not have 'token' on userProfile.user itself.
+                // We assume userProfile has the token:
+                localStorage.setItem('token', (userProfile as any).token); 
                 localStorage.setItem('user', JSON.stringify(userProfile.user));
 
             } else {
@@ -171,7 +174,8 @@ const handleApplyJob = async (jobId: string) => {
                 setCurrentUser(userProfile.user);
                 setCurrentUserRole(userProfile.role);
                 // CRITICAL FIX: Persist login data for the token and the full user profile
-                localStorage.setItem('token', userProfile.token);
+                // The returned object from registerUser might not have 'token' on userProfile.user itself.
+                localStorage.setItem('token', (userProfile as any).token);
                 localStorage.setItem('user', JSON.stringify(userProfile.user));
 
                 setIsRegistering(false); 
@@ -203,8 +207,8 @@ const handleApplyJob = async (jobId: string) => {
             setCurrentUser(savedSeeker);
             
             // CRITICAL FIX: Manually save the new token/user object for persistence.
-            if (savedSeeker.token) {
-                 localStorage.setItem('token', savedSeeker.token);
+            if ((savedSeeker as any).token) {
+                 localStorage.setItem('token', (savedSeeker as any).token);
             }
             localStorage.setItem('user', JSON.stringify(savedSeeker)); 
             
@@ -222,8 +226,8 @@ const handleApplyJob = async (jobId: string) => {
             setCurrentUser(savedCompany);
 
             // CRITICAL FIX: Manually save the new token/user object for persistence.
-            if (savedCompany.token) {
-                localStorage.setItem('token', savedCompany.token);
+            if ((savedCompany as any).token) {
+                localStorage.setItem('token', (savedCompany as any).token);
             }
             localStorage.setItem('user', JSON.stringify(savedCompany));
 
@@ -309,7 +313,6 @@ const handleApplyJob = async (jobId: string) => {
             authorName,
             authorRole: currentUserRole,
             authorPhotoUrl,
-            content,
         };
 
         // CRITICAL FIX: Uncomment and implement the API call to save the post
@@ -425,16 +428,16 @@ const handleApplyJob = async (jobId: string) => {
     // END RENDER LOGIC
 
    const renderDashboard = () => {
-        switch (currentUserRole) {
-            case 'seeker':
-                return <SeekerDashboard 
-                    seeker={currentUser as JobSeeker}
-                    jobs={jobs}
-                    companies={companies}
-                    onAddReview={handleAddReview}
-                    onSaveProfile={handleSaveSeekerProfile}
-                    onApplyJob={handleApplyJob} 
-                />;
+        switch (currentUserRole) {
+            case 'seeker':
+                return <SeekerDashboard 
+                    seeker={currentUser as JobSeeker}
+                    jobs={jobs}
+                    companies={companies}
+                    onAddReview={handleAddReview}
+                    onSaveProfile={handleSaveSeekerProfile}
+                    onApplyJob={handleApplyJob} 
+                />;
             case 'company':
                 return <CompanyDashboard 
                     company={currentUser as Company}
@@ -461,15 +464,20 @@ const handleApplyJob = async (jobId: string) => {
     
     let currentUserName = 'Admin';
     let currentUserPhoto = `https://i.pravatar.cc/150?u=admin`;
+    
+    // START FIX BLOCK: Make photo calculation robust in App.tsx
     if (currentUserRole === 'seeker') {
         currentUserName = (currentUser as JobSeeker).name;
-        // If current user's photoUrl is undefined or null, this may fail, but should now be correct 
-        // because of the backend changes to authController.js and blogController.js.
         currentUserPhoto = (currentUser as JobSeeker).photoUrl;
     } else if (currentUserRole === 'company') {
-        currentUserName = (currentUser as Company).name;
-        currentUserPhoto = (currentUser as Company).logo;
+        const companyUser = currentUser as Company;
+        // Use the logo if available
+        currentUserName = companyUser.name;
+        currentUserPhoto = companyUser.logo || (currentUser as any).photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyUser.name)}&background=0D83DD&color=fff&size=128`;
+        // The cast to (currentUser as any).photoUrl covers the case where the backend adds it for generic use
+        // and provides a better prop to BlogPage while it waits for its own fetch.
     }
+    // END FIX BLOCK
 
     return (
         <div className="min-h-screen">

@@ -32,7 +32,9 @@ interface PostCardProps {
   post: BlogPost;
   currentUserId: string;
   currentUserRole: 'seeker' | 'company' | 'admin';
-  currentUserPhoto: string;
+  // FIX: Pass the computed and latest photo/name from the parent BlogPage component
+  currentPosterPhoto: string; 
+  currentPosterName: string;
   onEdit: () => void;
   onDelete: () => void;
   onReaction: (postId: string, reactionType: ReactionType) => void;
@@ -46,7 +48,9 @@ const PostCard: React.FC<PostCardProps> = ({
   post,
   currentUserId,
   currentUserRole,
-  currentUserPhoto,
+  // FIX: Receive the new names
+  currentPosterPhoto,
+  currentPosterName,
   onEdit,
   onDelete,
   onReaction,
@@ -55,6 +59,8 @@ const PostCard: React.FC<PostCardProps> = ({
   onDeleteCommentClick,
   isNew,
 }) => {
+// ... (PostCard component state and handlers remain unchanged)
+
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -137,7 +143,7 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
               </div>
             )}
           </div>
-          
+          
           {post.imageUrl && (
             <img 
               src={post.imageUrl} 
@@ -258,9 +264,11 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
 
           {/* Add Comment Form */}
           <form onSubmit={handleCommentSubmit} className="flex space-x-3 items-start pt-2">
-            <img src={currentUserPhoto} alt="Your avatar" className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
+            {/* FIX: Use the calculated, up-to-date photo URL here */}
+            <img src={currentPosterPhoto} alt={currentPosterName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
             <div className="flex-grow">
               <textarea
+// ... (rest of the form remains unchanged)
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Write a comment..."
@@ -347,14 +355,13 @@ const displayedName = useMemo(() => {
     return currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile');
   }, [localProfile, currentUserName, currentUserRole]);
 
-// FIX: Correctly access the 'logo' property from the Company interface.
 const displayedPhoto = useMemo(() => {
     if (currentUserRole === 'company' && localProfile) {
       const companyProfile = localProfile as Company;
-      // Use 'logo' (the correct company property), falling back to the prop's photo URL.
+      // FIX: Correctly uses the 'logo' property from the Company interface
       return companyProfile.logo || currentUserPhoto;
     }
-    // Fallback to prop for other roles or if fetching failed
+    // Fallback to prop for other roles
     return currentUserPhoto;
   }, [localProfile, currentUserPhoto, currentUserRole]);
 
@@ -453,7 +460,9 @@ const displayedPhoto = useMemo(() => {
           post={post}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
-          currentUserPhoto={currentUserPhoto}
+          // FIX: Pass the computed photo and name to PostCard
+          currentPosterPhoto={displayedPhoto}
+          currentPosterName={displayedName}
           onEdit={() => {
             setEditingPost(post);
             setEditedContent(post.content);
