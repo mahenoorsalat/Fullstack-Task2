@@ -97,9 +97,17 @@ applyToJob: async (jobId: string): Promise<any> => {
       getBlogPosts: async() : Promise<BlogPost[]>=>{
         return apiFetch('/blog' , {method:'GET'})
       } , 
-      addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
-        return apiFetch ('/blog' , {method:"POST" , body : postData })
-      } , 
+addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
+        const response = await apiFetch ('/blog' , {method:"POST" , body : postData });
+        
+        // FIX: We must explicitly return the 'post' property from the response object.
+        if (response && response.post) {
+            return response.post as BlogPost; // <--- This is the essential change
+        }
+        
+        // Fallback (should not be reached if backend fix is applied)
+        return response as BlogPost;
+      } ,
       updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}` , {method:'PUT' , body:{content}})
       },
