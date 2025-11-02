@@ -347,19 +347,22 @@ const BlogPage: React.FC<BlogPageProps> = ({
    {/* Create Post */}
         <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive mb-8">
           <form onSubmit={handleSubmit} className="flex space-x-4 items-start">
-            <img src={currentUserPhoto} alt={currentUserName} className="h-12 w-12 rounded-full object-cover" />
+            {/* 🐛 FIX: Corrected image source to use the currentUserPhoto prop with a fallback */}
+            <img 
+              src={currentUserPhoto || 'https://placehold.co/48x48/4F46E5/FFFFFF?text=P'} 
+              alt={currentUserName || "Profile Picture"} 
+              className="h-12 w-12 rounded-full object-cover" 
+            />
             <div className="flex-grow">
-                {/* 💡 INSERTED: Display the current user's name/profile name
-                  This name is already correctly set to the company name/fallback in the backend controller.
-                */}
-                <div className="mb-2">
-                <p className="font-bold text-lg text-neutral">
+                {/* 💡 Display the current user's name/profile name */}
+                <div className="mb-2">
+                <p className="font-bold text-lg text-neutral">
                   {currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile')}
                 </p>
-                    {currentUserRole === 'company' && (
-                        <span className="text-sm text-gray-500">Posting as Company</span>
-                    )}
-                </div>
+                    {currentUserRole === 'company' && (
+                        <span className="text-sm text-gray-500">Posting as Company</span>
+                    )}
+                </div>
                 {/* END INSERTED CODE */}
               <textarea
                 value={content}

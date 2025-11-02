@@ -76,19 +76,28 @@ export const api = {
 applyToJob: async (jobId: string): Promise<any> => {
         return apiFetch(`/applications/job/${jobId}`, { method: 'POST' }); 
     },
-  getProfile: async (): Promise<User> => {
+ getProfile: async (): Promise<User> => {
         const user = await apiFetch('/auth/profile', { method: 'GET' }); 
         
+        // --- START FIX: Ensure name and photo fallbacks are applied on frontend state load ---
         if (user.role === 'company') {
             const companyUser = user as Company;
 
-            const robustName = companyUser.name || companyUser.description || companyUser.website;
+            // 1. ROBUST NAME FALLBACK (Existing fix to ensure currentUserName isn't blank)
+            const robustName = companyUser.name || companyUser.description || companyUser.website || 'Your Company Profile';
+            companyUser.name = robustName;
 
-            if (robustName) {
-                companyUser.name = robustName;
+            // 2. ROBUST PHOTO FALLBACK (NEW FIX for currentUserPhoto)
+            // Use 'logo', fallback to 'photoUrl' (if it somehow exists), or use an avatar derived from the name.
+            if (!companyUser.photoUrl) {
+                // If photoUrl is missing/empty, use logo, or a placeholder based on the name
+                const fallbackPhotoUrl = companyUser.logo 
+                    || `https://ui-avatars.com/api/?name=${encodeURIComponent(robustName)}&background=0D83DD&color=fff&size=128`;
+                
+                (user as any).photoUrl = fallbackPhotoUrl; // Assign to photoUrl for consistency
             }
         }
-      
+        // --- END FIX ---
 
         return user; 
     },
