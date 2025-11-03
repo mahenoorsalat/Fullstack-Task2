@@ -101,13 +101,17 @@ const PostCard: React.FC<PostCardProps> = ({
     await onAddComment(post.id, commentText);
     setCommentText('');
     setIsSubmittingComment(false);
+    // FIX 1: Show comments immediately after posting a new one
+    setShowComments(true);
   };
 
-  // --- NEW: Handle Save/Cancel for Comment Edit ---
+  // --- Handle Save/Cancel for Comment Edit ---
   const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // FIX 3: Ensure content is valid and actually changed
     if (!editingComment || !post.id || editedCommentContent.trim() === '' || editedCommentContent === editingComment.content) {
       setEditingComment(null); // Cancel if content is empty or unchanged
+      setEditedCommentContent('');
       return;
     }
     
@@ -131,9 +135,9 @@ const PostCard: React.FC<PostCardProps> = ({
   // --- END: Handle Save/Cancel for Comment Edit ---
 
   // Determine if the current user is the post author or an admin
-  const isPostAuthor = currentUserId === post.authorId;
-  // This is the correct logic for post visibility: author OR admin
-  const canEditOrDeletePost = isPostAuthor || currentUserRole === 'admin';
+  const isPostAuthor = currentUserId === post.authorId;
+  // This is the correct logic for post visibility: author OR admin
+  const canEditOrDeletePost = isPostAuthor || currentUserRole === 'admin';
 
 
   return (
@@ -153,7 +157,7 @@ const PostCard: React.FC<PostCardProps> = ({
                 <p className="text-sm text-gray-500">· {new Date(post.timestamp).toLocaleString()}</p>
               </div>
             </div>
-            {/* FIX: Show edit/delete post controls for Author OR Admin */}
+            {/* Requirement 1: Post Edit/Delete controls: visible to Author OR Admin */}
             {canEditOrDeletePost && ( 
               <div className="flex items-center space-x-1 flex-shrink-0">
                 <button onClick={onEdit} className="text-gray-500 hover:text-primary p-1 rounded-full hover:bg-gray-100" aria-label="Edit Post">
@@ -224,6 +228,7 @@ const PostCard: React.FC<PostCardProps> = ({
             <div key={comment.id ?? `${post.id}-comment-${index}`} className="flex space-x-3">
               <img src={comment.authorPhotoUrl} alt={comment.authorName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
               <div className="flex-grow bg-gray-100/80 rounded-lg p-3">
+                {/* Requirement 3: Comment Edit UI/UX - Show Edit Input if editing, else show plain text */}
                 {editingComment?.id === comment.id ? (
                   <form onSubmit={handleUpdateCommentSubmit}>
                     <textarea
@@ -258,7 +263,7 @@ const PostCard: React.FC<PostCardProps> = ({
                         <p className="font-semibold text-sm text-neutral">{comment.authorName}</p>
                         <p className="text-xs text-gray-500">· {new Date(comment.timestamp).toLocaleString()}</p>
                       </div>
-                    {/* Show Edit/Delete only if author or admin */}
+                    {/* Requirement 2: Comment Action Visibility - Show Edit/Delete only if author or admin */}
                     {(currentUserRole === 'admin' || comment.authorId === currentUserId) && ( 
     <div className="flex items-center space-x-1">
         <button
@@ -272,7 +277,14 @@ const PostCard: React.FC<PostCardProps> = ({
             <PencilIcon className="h-4 w-4" />
         </button>
         <button
-            onClick={() => onDeleteCommentClick(comment)} // Triggers parent modal
+            // FIX: Added explicit check for comment.id before triggering delete modal for robustness
+            onClick={() => {
+                if (comment.id) {
+                    onDeleteCommentClick(comment); // Triggers parent modal
+                } else {
+                    console.error("Cannot delete comment: ID is missing.");
+                }
+            }} 
             className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
             aria-label="Delete Comment"
         >

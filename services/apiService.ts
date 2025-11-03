@@ -127,6 +127,9 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
       updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}` , {method:'PUT' , body:{content}})
       },
+    deleteBlogPost : async(postId:string , content:string ): Promise<BlogPost>=>{
+        return apiFetch(`/blog/${postId}` , {method:'DELETE' , body:{content}})
+      },
       deleteEntity : async(type:'job'|'company'| 'seeker' | 'blogPost' , id:string) : Promise<boolean>=>{
         if(type === 'blogPost'){
           await apiFetch(`/blog/${id}` , {method : 'DELETE'});
@@ -152,4 +155,5 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
     getApplicationsForJob: async (jobId: string): Promise<Application[]> => {
     return apiFetch(`/applications/job/${jobId}`, { method: 'GET' });
 },
+
 }
