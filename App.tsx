@@ -339,7 +339,7 @@ const handleApplyJob = async (jobId: string) => {
     const handleDeleteBlogPost = async (postId: string) => {
         // CRITICAL FIX: Uncomment and implement the API call
         try {
-            if (await api.deleteBlogPost(postId)) {
+            if (await api.deleteEntity(postId)) {
                 setBlogPosts(posts => posts.filter(p => p.id !== postId));
                 setNotification("Blog post deleted successfully!");
             }

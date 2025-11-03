@@ -3,7 +3,7 @@ import { Company, Job, JobSeeker } from '../types';
 import Modal from './Modal';
 import CompanyProfileEdit from './CompanyProfileEdit';
 import PostJobForm from './PostJobForm';
-import { PencilIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
+import { PencilIcon, PlusCircleIcon, BriefcaseIcon, TrashIcon } from './icons'; // ADDED TrashIcon
 import { api } from '../services/apiService';
 
 interface ApplicationData {
@@ -17,15 +17,21 @@ interface CompanyDashboardProps {
     company: Company;
     seekers: JobSeeker[];
     onSaveProfile: (updatedCompany: Company) => void;
-    onSaveJob: (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => void;
+    onSaveJob: (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'> | Job) => void; // Job type added for editing
+    // NEW PROP: Function to handle deletion (used for jobs)
+    onDelete: (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => Promise<void>;
 }
 
 const DEFAULT_LOGO_URL = '/assets/default-company-logo.png'; 
 
-const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, onSaveProfile, onSaveJob }) => { 
+// FIX: Provide a default function for onDelete to prevent TypeError if the parent doesn't pass it.
+const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, onSaveProfile, onSaveJob, onDelete = async () => {} }) => { 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
     const [viewingApplicantsForJob, setViewingApplicantsForJob] = useState<Job | null>(null);
+    const [jobToEdit, setJobToEdit] = useState<Job | null>(null); // State for job being edited
+    // NEW STATE: For delete confirmation
+    const [deleteConfirmJob, setDeleteConfirmJob] = useState<Job | null>(null);
 
     const initialLogo = company.logo || (company as any).photoUrl;
     const [logoSrc, setLogoSrc] = useState(initialLogo);
@@ -49,9 +55,10 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         setJobApplications([]); 
         setViewingApplicantsForJob(job);
 
-        await fetchCompanyJobs();
+        // No need to fetch jobs here, we are viewing applications
         try {
-            const applications = await api.getApplicationsForJob(job.id); 
+            // Assuming ApplicationData type is correct for the API response
+            const applications: ApplicationData[] = await api.getApplicationsForJob(job.id); 
             setJobApplications(applications);
         } catch (error) {
             console.error(`Failed to fetch applications for job ${job.id}:`, error);
@@ -60,28 +67,54 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         }
     };
 
- useEffect(() => {
-    const newLogo = company.logo || (company as any).photoUrl;
-    setLogoSrc(newLogo);
-    }, [company.logo, (company as any).photoUrl]); 
-    
-    useEffect(() => {
-        fetchCompanyJobs();
-    }, [company.id]); 
+    useEffect(() => {
+        const newLogo = company.logo || (company as any).photoUrl;
+        setLogoSrc(newLogo);
+    }, [company.logo, (company as any).photoUrl]); 
+        
+        useEffect(() => {
+            fetchCompanyJobs();
+        }, [company.id]); 
 
-    const handleSaveProfile = (updatedCompany: Company) => {
+        const handleSaveProfile = (updatedCompany: Company) => {
         setLogoSrc(updatedCompany.logo); 
         
-        onSaveProfile(updatedCompany); 
+            onSaveProfile(updatedCompany); 
         
-        setIsEditModalOpen(false);
-    };
+            setIsEditModalOpen(false);
+        };
 
-    const handleSaveJob = (job: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
-        onSaveJob(job);
+    // Function to handle both creation and editing of a job
+    const handleSaveJob = (jobData: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'> | Job) => {
+        // We pass the full job object (if editing) or the Omit type (if creating)
+        onSaveJob(jobData);
         setIsPostJobModalOpen(false);
-        fetchCompanyJobs();
+        setJobToEdit(null); // Clear editing state
+        fetchCompanyJobs(); // Refresh the list after save
     };
+    
+    // Function to open the Edit Job Modal
+    const handleEditJob = (job: Job) => {
+        setJobToEdit(job);
+        setIsPostJobModalOpen(true);
+    };
+
+    // Function to confirm and perform job deletion
+    const handleConfirmDeleteJob = async () => {
+        if (deleteConfirmJob) {
+            try {
+                // Call the onDelete prop, which calls api.deleteEntity in the parent/App.tsx
+                await onDelete('job', deleteConfirmJob.id);
+                setDeleteConfirmJob(null);
+                // Refetch jobs to update the UI
+                fetchCompanyJobs(); 
+            } catch (error) {
+                console.error("Failed to delete job:", error);
+                // You would typically show a toast/alert here
+            }
+        }
+    };
+
     return (
         <main className="container mx-auto p-4 md:p-8 space-y-8">
             <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive relative">
@@ -98,11 +131,9 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                         alt={company.name} 
                         className="h-24 w-24 rounded-full mr-6 border-4 border-secondary"
                         onError={(e) => {
-                            // If the actual logo fails, switch only the image element's src to the default path
                             if (e.currentTarget.src !== DEFAULT_LOGO_URL) {
                                 e.currentTarget.onerror = null; // prevents looping
                                 e.currentTarget.src = DEFAULT_LOGO_URL;
-                                // DO NOT call setLogoSrc(DEFAULT_LOGO_URL) here.
                             }
                         }}
                     />
@@ -120,14 +151,17 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                         Your Job Postings
                     </h3>
                     <button 
-                        onClick={() => setIsPostJobModalOpen(true)}
+                        onClick={() => {
+                            setJobToEdit(null); // Ensure we are in 'create' mode
+                            setIsPostJobModalOpen(true);
+                        }}
                         className="flex items-center bg-primary hover:bg-primary-focus text-white font-bold py-2 px-4 rounded-md transition-colors"
                     >
                         <PlusCircleIcon className="h-5 w-5 mr-2"/>
                         Post New Job
                     </button>
                 </div>
-<div className="space-y-4">
+                <div className="space-y-4">
                     {companyJobs.length > 0 ? companyJobs.map((job, index) => (
                         <div key={job.id || index} className="p-4 border rounded-lg hover:shadow-sm bg-white/50">
                             <div className="flex justify-between items-center">
@@ -135,18 +169,36 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                                     <h4 className="font-bold text-lg">{job.title}</h4>
                                     <p className="text-sm text-gray-500">{job.location}</p>
                                 </div>
-                                <button 
-                                    onClick={() => fetchApplicationsForJob(job)} 
-                                    className="text-primary font-semibold hover:underline"
-                                >
-                                    View Applicants ({job.applicants?.length ?? 0})
-                                </button>
+                                <div className="flex items-center space-x-3">
+                                    <button 
+                                        onClick={() => fetchApplicationsForJob(job)} 
+                                        className="text-primary font-semibold hover:underline text-sm"
+                                    >
+                                        View Applicants ({job.applicants?.length ?? 0})
+                                    </button>
+                                    <button 
+                                        onClick={() => handleEditJob(job)} 
+                                        className="text-gray-500 hover:text-primary p-1 rounded-full hover:bg-gray-100"
+                                        aria-label="Edit Job"
+                                    >
+                                        <PencilIcon className="h-5 w-5"/>
+                                    </button>
+                                    {/* NEW BUTTON: Delete Job */}
+                                    <button 
+                                        onClick={() => setDeleteConfirmJob(job)} 
+                                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+                                        aria-label="Delete Job"
+                                    >
+                                        <TrashIcon className="h-5 w-5"/>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )) : <p className="text-gray-500">You haven't posted any jobs yet.</p>}
                 </div>
             </div>
             
+            {/* Edit Profile Modal */}
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
@@ -159,20 +211,28 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                 />
             </Modal>
             
-            {/* Post Job Modal */}
+            {/* Post/Edit Job Modal */}
             <Modal
                 isOpen={isPostJobModalOpen}
-                onClose={() => setIsPostJobModalOpen(false)}
-                title="Post a New Job"
+                onClose={() => {
+                    setIsPostJobModalOpen(false);
+                    setJobToEdit(null);
+                }}
+                title={jobToEdit ? `Edit Job: ${jobToEdit.title}` : "Post a New Job"}
             >
                 <PostJobForm
                     companyId={company.id}
                     onSave={handleSaveJob}
-                    onCancel={() => setIsPostJobModalOpen(false)}
+                    onCancel={() => {
+                        setIsPostJobModalOpen(false);
+                        setJobToEdit(null);
+                    }}
+                    jobToEdit={jobToEdit} // Pass job object for editing
                 />
             </Modal>
 
-        {viewingApplicantsForJob && (
+            {/* View Applicants Modal */}
+            {viewingApplicantsForJob && (
                 <Modal
                     isOpen={!!viewingApplicantsForJob}
                     onClose={() => {
@@ -210,6 +270,19 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                 </Modal>
             )}
 
+            {/* NEW: Delete Confirmation Modal */}
+            <Modal isOpen={!!deleteConfirmJob} onClose={() => setDeleteConfirmJob(null)} title="Confirm Job Deletion">
+                {deleteConfirmJob && (
+                    <div className="text-center">
+                        <p className="text-lg">Are you sure you want to delete the job: <span className="font-bold">{deleteConfirmJob.title}</span>?</p>
+                        <p className="text-sm text-red-600 mt-2">This action cannot be undone and will delete all associated applications.</p>
+                        <div className="mt-6 flex justify-center space-x-4">
+                            <button onClick={() => setDeleteConfirmJob(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-6 rounded-md">Cancel</button>
+                            <button onClick={handleConfirmDeleteJob} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">Delete</button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </main>
     );
 };

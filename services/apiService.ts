@@ -8,6 +8,17 @@
  */
 import { Job, Company, JobSeeker, Admin, Review, BlogPost, ReactionType, Reaction, Comment, JobType, LocationType } from '../types';
 import { apiFetch } from './apiClient'
+
+// NEW: Define the search parameters interface (needed for getJobs, included for completeness)
+interface JobSearchParams {
+    keyword?: string; 
+    location?: string;
+    type?: JobType | string;
+    minSalary?: number;
+    companyName?: string; 
+}
+
+
 type UserRole = 'seeker' | 'company' | 'admin';
 type User = JobSeeker | Company | Admin;
 
@@ -28,7 +39,6 @@ export const api = {
        throw new Error ('Login Failed : no token received')
       },
 
-      // NEW/FIXED: registerUser function is correctly defined here
       registerUser: async (name: string, email: string, password: string, role: UserRole): Promise<{ user: User, role: UserRole }> => {
         const response = await apiFetch('/auth/register', {
           method: 'POST',
@@ -68,17 +78,20 @@ export const api = {
       getCompanies : async(): Promise<Company[]>=>{
         return apiFetch('/user?role=company' , { method : 'GET'})
       },
-      getJobs : async(): Promise<Job[]>=>{
-        return apiFetch('/jobs' , {method:'GET'})
+      // FIX: Updated getJobs to accept search params
+      getJobs : async(params: JobSearchParams = {}): Promise<Job[]>=>{
+        const query = new URLSearchParams(params as Record<string, any>).toString();
+         const endpoint = query ? `/jobs?${query}` : '/jobs';
+        return apiFetch(endpoint , {method:'GET'})
       },
      
       getCompanyJobs: async (): Promise<Job[]> => {
         return apiFetch('/jobs/employer/jobs', { method: 'GET' });
       },
-applyToJob: async (jobId: string): Promise<any> => {
+    applyToJob: async (jobId: string): Promise<any> => {
         return apiFetch(`/applications/job/${jobId}`, { method: 'POST' }); 
     },
- getProfile: async (): Promise<User> => {
+    getProfile: async (): Promise<User> => {
         const user = await apiFetch('/auth/profile', { method: 'GET' }); 
         
         if (user.role === 'company') {
@@ -95,8 +108,6 @@ applyToJob: async (jobId: string): Promise<any> => {
                 (user as any).photoUrl = fallbackPhotoUrl; // Assign to photoUrl for consistency
             }
         }
-        // --- END FIX ---
-
         return user; 
     },
       saveSeeker:async(seekerData: JobSeeker) : Promise<JobSeeker>=>{
@@ -117,26 +128,35 @@ applyToJob: async (jobId: string): Promise<any> => {
       getBlogPosts: async() : Promise<BlogPost[]>=>{
         return apiFetch('/blog' , {method:'GET'})
       } , 
-addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
-        const response = await apiFetch ('/blog' , {method:"POST" , body : postData });
-        
-        if (response && response.post) {
-            return response.post as BlogPost; 
-        }
-        
-        return response as BlogPost;
-      } ,
+    addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
+            const response = await apiFetch ('/blog' , {method:"POST" , body : postData });
+            
+            if (response && response.post) {
+                return response.post as BlogPost; 
+            }
+            
+            return response as BlogPost;
+          } ,
       updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}` , {method:'PUT' , body:{content}})
       },
-    // FIX: Simplified deleteEntity to directly call blog endpoint, fixing potential post delete issue.
+    // FIX: Implement logic for job, seeker, and company deletion
       deleteEntity : async(type:'job'|'company'| 'seeker' | 'blogPost' , id:string) : Promise<boolean>=>{
         if(type === 'blogPost'){
-          // The backend returns a 204 on success, which should resolve to an empty object or null.
+          // DELETE /blog/:id
           await apiFetch(`/blog/${id}` , {method : 'DELETE'});
           return true ; 
         }
-        // Add logic for other entity types if needed here...
+        if (type === 'seeker' || type === 'company') {
+            // DELETE /user/admin/users/:id (Used by AdminDashboard)
+            await apiFetch(`/user/admin/users/${id}`, { method: 'DELETE' }); 
+            return true;
+        }
+        if (type === 'job') {
+            // DELETE /jobs/:id (Used by CompanyDashboard and AdminDashboard)
+            await apiFetch(`/jobs/${id}`, { method: 'DELETE' }); 
+            return true;
+        }
         return false ; 
       },
 
@@ -154,6 +174,11 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
       deleteComment: async(postId: string , commentId:string ): Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}/comment/${commentId}` , {method : 'DELETE'} );
       },
+    // NEW: Function to fetch all users for Admin
+    getAdminUsers: async (): Promise<User[]> => {
+        // GET /user/admin/users
+        return apiFetch('/user/admin/users', { method: 'GET' });
+    },
     getApplicationsForJob: async (jobId: string): Promise<Application[]> => {
     return apiFetch(`/applications/job/${jobId}`, { method: 'GET' });
 },

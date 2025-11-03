@@ -30,7 +30,8 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Search and Filter State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // Handles Title and Location (keyword in backend)
+  const [companyQuery, setCompanyQuery] = useState(''); // NEW: Handles Company Name
   const [selectedJobType, setSelectedJobType] = useState('');
   const [selectedExperience, setSelectedExperience] = useState('');
   const [minSalary, setMinSalary] = useState(0);
@@ -79,10 +80,14 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
       const company = companies.find(c => c.id === job.companyId);
       if (!company) return false;
 
-      const matchesQuery = searchQuery.toLowerCase() === '' ||
+      // FIX: Updated search logic to separate Title/Location and Company Name checks
+      const matchesTitleOrLocation = searchQuery.toLowerCase() === '' ||
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.location.toLowerCase().includes(searchQuery.toLowerCase());
+        
+      const matchesCompanyName = companyQuery.toLowerCase() === '' ||
+        company.name.toLowerCase().includes(companyQuery.toLowerCase());
+
 
       const matchesJobType = selectedJobType === '' || job.jobType === selectedJobType;
       
@@ -90,12 +95,14 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
 
       const matchesSalary = job.salaryMin >= minSalary;
 
-      return matchesQuery && matchesJobType && matchesExperience && matchesSalary;
+      // Check all filter conditions
+      return matchesTitleOrLocation && matchesCompanyName && matchesJobType && matchesExperience && matchesSalary;
     });
-  }, [jobs, companies, searchQuery, selectedJobType, selectedExperience, minSalary]);
+  }, [jobs, companies, searchQuery, companyQuery, selectedJobType, selectedExperience, minSalary]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setCompanyQuery(''); // FIX: Reset new company search state
     setSelectedJobType('');
     setSelectedExperience('');
     setMinSalary(0);
@@ -129,16 +136,26 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
         </div>
         <div className="lg:col-span-2">
           <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-interactive mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div className="md:col-span-2 lg:col-span-4">
-                    <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search by Title, Company, Location</label>
+            {/* FIX: Changed grid to 5 columns in large view, and split the search bar into two inputs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                {/* 1. Title/Location Search (Spans 2 columns on large screens) */}
+                <div className="md:col-span-2 lg:col-span-2">
+                    <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search Title or Location</label>
                     <div className="relative mt-1">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                         </div>
-                        <input type="text" id="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g., 'React Developer' or 'Innovate Inc.'" className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+                        <input type="text" id="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g., 'React Developer', 'London'" className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
                     </div>
                 </div>
+                {/* 2. Company Name Search (Spans 1 column) */}
+                <div className="md:col-span-2 lg:col-span-1">
+                    <label htmlFor="company-search" className="block text-sm font-medium text-gray-700">Company Name</label>
+                    <div className="relative mt-1">
+                        <input type="text" id="company-search" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} placeholder="e.g., 'Innovate Inc.'" className="block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:border-primary focus:ring-primary sm:text-sm" />
+                    </div>
+                </div>
+                {/* 3. Job Type */}
                 <div>
                     <label htmlFor="jobType" className="block text-sm font-medium text-gray-700">Job Type</label>
                     <select id="jobType" value={selectedJobType} onChange={(e) => setSelectedJobType(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary focus:outline-none focus:ring-primary sm:text-sm">
@@ -146,6 +163,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                         {Object.values(JobType).map(type => <option key={type} value={type}>{type}</option>)}
                     </select>
                 </div>
+                {/* 4. Experience */}
                 <div>
                     <label htmlFor="experience" className="block text-sm font-medium text-gray-700">Experience</label>
                     <select id="experience" value={selectedExperience} onChange={(e) => setSelectedExperience(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary focus:outline-none focus:ring-primary sm:text-sm">
@@ -153,11 +171,13 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                         {experienceLevels.map(level => <option key={level} value={level}>{level}</option>)}
                     </select>
                 </div>
+                {/* 5. Min Salary */}
                 <div>
                     <label htmlFor="salary" className="block text-sm font-medium text-gray-700">Min Salary: ${minSalary.toLocaleString()}</label>
                     <input type="range" id="salary" min="0" max="200000" step="10000" value={minSalary} onChange={(e) => setMinSalary(Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2" />
                 </div>
-                <div>
+                {/* 6. Reset (Spans 1 column on large screens) */}
+                <div className="md:col-span-2 lg:col-span-1">
                     <button onClick={handleResetFilters} className="w-full rounded-md bg-gray-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">Reset</button>
                 </div>
             </div>
