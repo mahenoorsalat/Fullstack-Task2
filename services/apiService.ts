@@ -1,3 +1,5 @@
+// services/apiService.ts
+
 /**
  * Mock API Service
  * This file simulates a backend API service using in-memory data.
@@ -127,14 +129,14 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
       updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}` , {method:'PUT' , body:{content}})
       },
-    deleteBlogPost : async(postId:string , content:string ): Promise<BlogPost>=>{
-        return apiFetch(`/blog/${postId}` , {method:'DELETE' , body:{content}})
-      },
+    // FIX: Simplified deleteEntity to directly call blog endpoint, fixing potential post delete issue.
       deleteEntity : async(type:'job'|'company'| 'seeker' | 'blogPost' , id:string) : Promise<boolean>=>{
         if(type === 'blogPost'){
+          // The backend returns a 204 on success, which should resolve to an empty object or null.
           await apiFetch(`/blog/${id}` , {method : 'DELETE'});
           return true ; 
         }
+        // Add logic for other entity types if needed here...
         return false ; 
       },
 
@@ -155,5 +157,4 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
     getApplicationsForJob: async (jobId: string): Promise<Application[]> => {
     return apiFetch(`/applications/job/${jobId}`, { method: 'GET' });
 },
-
 }
