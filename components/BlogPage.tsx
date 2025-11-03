@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react'; 
+import React, { useState, useMemo, useEffect } from 'react';
 import { BlogPost, ReactionType, Comment, Company, JobSeeker } from '../types';
-import Modal from './Modal';
-import { api } from '../services/apiService'; // Import the API service
+import Modal from './Modal'; // Correct path for Modal (same directory)
+import { api } from '../services/apiService'; // Correct path for apiService (one level up)
+
 import {
   PencilIcon,
   TrashIcon,
@@ -11,7 +12,9 @@ import {
   HandThumbUpIconSolid,
   HeartIconSolid,
   HandThumbDownIconSolid,
-} from './icons';
+} from './icons'; // Correct path for icons (same directory)
+
+// NOTE: CommentItemProps is no longer needed since the logic is inside PostCard
 
 interface BlogPageProps {
   posts: BlogPost[];
@@ -20,6 +23,7 @@ interface BlogPageProps {
   onDeletePost: (postId: string) => Promise<void>;
   onPostReaction: (postId: string, reactionType: ReactionType) => void;
   onAddComment: (postId: string, content: string) => Promise<void>;
+  // Renamed prop to handle update/delete logic outside of PostCard to keep state clean
   onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
   onDeleteComment: (postId: string, commentId: string) => Promise<void>;
   currentUserId: string;
@@ -32,15 +36,15 @@ interface PostCardProps {
   post: BlogPost;
   currentUserId: string;
   currentUserRole: 'seeker' | 'company' | 'admin';
-  // FIX: Pass the computed and latest photo/name from the parent BlogPage component
-  currentPosterPhoto: string; 
+  currentPosterPhoto: string;
   currentPosterName: string;
   onEdit: () => void;
   onDelete: () => void;
   onReaction: (postId: string, reactionType: ReactionType) => void;
   onAddComment: (postId: string, content: string) => Promise<void>;
   onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
-  onDeleteCommentClick: (comment: Comment) => void;
+  // Adjusted prop name to better reflect the action
+  onDeleteCommentClick: (comment: Comment) => void; 
   isNew?: boolean;
 }
 
@@ -48,7 +52,6 @@ const PostCard: React.FC<PostCardProps> = ({
   post,
   currentUserId,
   currentUserRole,
-  // FIX: Receive the new names
   currentPosterPhoto,
   currentPosterName,
   onEdit,
@@ -59,11 +62,10 @@ const PostCard: React.FC<PostCardProps> = ({
   onDeleteCommentClick,
   isNew,
 }) => {
-// ... (PostCard component state and handlers remain unchanged)
-
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  // State to manage which comment is currently being edited
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [editedCommentContent, setEditedCommentContent] = useState('');
 
@@ -101,19 +103,38 @@ const PostCard: React.FC<PostCardProps> = ({
     setIsSubmittingComment(false);
   };
 
-const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
+  // --- NEW: Handle Save/Cancel for Comment Edit ---
+  const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingComment || !editedCommentContent.trim() || !post.id) return;
-    
-    try {
-        await onUpdateComment(post.id, editingComment.id, editedCommentContent);
-    } catch (error) {
-        console.error("Comment Update Failed:", error);
+    if (!editingComment || !post.id || editedCommentContent.trim() === '' || editedCommentContent === editingComment.content) {
+      setEditingComment(null); // Cancel if content is empty or unchanged
+      return;
     }
     
+    try {
+      // Call the parent handler to perform the API update
+      await onUpdateComment(post.id, editingComment.id, editedCommentContent);
+      // Clear editing state on success
+      setEditingComment(null);
+      setEditedCommentContent('');
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      // Logging to console instead of alert
+      console.log('Failed to save comment. Please try again.'); 
+    }
+  };
+  
+  const handleCancelEdit = () => {
     setEditingComment(null);
     setEditedCommentContent('');
-};
+  };
+  // --- END: Handle Save/Cancel for Comment Edit ---
+
+  // Determine if the current user is the post author or an admin
+  const isPostAuthor = currentUserId === post.authorId;
+  // This is the correct logic for post visibility: author OR admin
+  const canEditOrDeletePost = isPostAuthor || currentUserRole === 'admin';
+
 
   return (
     <div className="bg-white/80 backdrop-blur-sm p-5 rounded-xl shadow-interactive hover:shadow-interactive-lg hover:-translate-y-1 transition-transform-shadow duration-300 flex flex-col space-y-4 animate-fade-in-up">
@@ -132,7 +153,8 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
                 <p className="text-sm text-gray-500">· {new Date(post.timestamp).toLocaleString()}</p>
               </div>
             </div>
-            {currentUserRole === 'admin' && (
+            {/* FIX: Show edit/delete post controls for Author OR Admin */}
+            {canEditOrDeletePost && ( 
               <div className="flex items-center space-x-1 flex-shrink-0">
                 <button onClick={onEdit} className="text-gray-500 hover:text-primary p-1 rounded-full hover:bg-gray-100" aria-label="Edit Post">
                   <PencilIcon className="h-5 w-5" />
@@ -154,6 +176,7 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
 
           <p className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</p>
         </div>
+        
       </div>
 
       {/* Reactions */}
@@ -194,7 +217,7 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
         )}
       </div>
 
-      {/* Comments */}
+      {/* Comments Section */}
       {(showComments || postComments.length === 0) && (
         <div className="pt-4 border-t border-gray-200/80 space-y-4">
           {postComments.map((comment, index) => (
@@ -211,15 +234,15 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
                       autoFocus
                     />
                     <div className="flex justify-end space-x-2 mt-2">
-                    <button
+                      {/* Cancel button calls local handler to reset state */}
+                      <button
                         type="button"
-                        onClick={() => { 
-                          setEditingComment(null);
-                          setEditedCommentContent('');
-                        }}
-                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors">
+                        onClick={handleCancelEdit}
+                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors"
+                      >
                         Cancel
                       </button>
+                      {/* Save button calls local handler which triggers API prop */}
                       <button
                         type="submit"
                         className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-3 rounded-md transition-colors"
@@ -235,7 +258,8 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
                         <p className="font-semibold text-sm text-neutral">{comment.authorName}</p>
                         <p className="text-xs text-gray-500">· {new Date(comment.timestamp).toLocaleString()}</p>
                       </div>
-                    {(currentUserRole === 'admin' || comment.authorId === currentUserId) && (
+                    {/* Show Edit/Delete only if author or admin */}
+                    {(currentUserRole === 'admin' || comment.authorId === currentUserId) && ( 
     <div className="flex items-center space-x-1">
         <button
             onClick={() => {
@@ -243,12 +267,14 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
                 setEditedCommentContent(comment.content);
             }}
             className="text-gray-400 hover:text-primary p-1 rounded-full text-xs"
+            aria-label="Edit Comment"
         >
             <PencilIcon className="h-4 w-4" />
         </button>
         <button
-            onClick={() => onDeleteCommentClick(comment)}
+            onClick={() => onDeleteCommentClick(comment)} // Triggers parent modal
             className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
+            aria-label="Delete Comment"
         >
             <TrashIcon className="h-4 w-4" />
         </button>
@@ -264,11 +290,9 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
 
           {/* Add Comment Form */}
           <form onSubmit={handleCommentSubmit} className="flex space-x-3 items-start pt-2">
-            {/* FIX: Use the calculated, up-to-date photo URL here */}
             <img src={currentPosterPhoto} alt={currentPosterName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
             <div className="flex-grow">
               <textarea
-// ... (rest of the form remains unchanged)
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Write a comment..."
@@ -281,7 +305,7 @@ const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
                   <button
                     type="submit"
                     disabled={isSubmittingComment}
-                    className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-4 rounded-md transition-colors disabled:bg-gray-400"
+                    className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-4 rounded-md transition-colors duration-300 disabled:bg-gray-400"
                   >
                     {isSubmittingComment ? 'Posting...' : 'Post'}
                   </button>
@@ -392,10 +416,16 @@ const displayedPhoto = useMemo(() => {
     setDeletingPost(null);
   };
 
+  // --- NEW: Handle Comment Deletion Confirmation and Execution ---
   const handleDeleteCommentConfirm = async () => {
     if (!deletingCommentInfo) return;
-    await onDeleteComment(deletingCommentInfo.postId, deletingCommentInfo.comment.id);
-    setDeletingCommentInfo(null);
+    
+    try {
+      await onDeleteComment(deletingCommentInfo.postId, deletingCommentInfo.comment.id);
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+    setDeletingCommentInfo(null); // Close modal regardless of success/failure
   };
 
   return (
@@ -460,7 +490,6 @@ const displayedPhoto = useMemo(() => {
           post={post}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
-          // FIX: Pass the computed photo and name to PostCard
           currentPosterPhoto={displayedPhoto}
           currentPosterName={displayedName}
           onEdit={() => {
@@ -483,6 +512,7 @@ const displayedPhoto = useMemo(() => {
             </div>
           )}
         </div>
+        
       </div>
 
       {/* Modals (unchanged) */}
@@ -505,7 +535,7 @@ const displayedPhoto = useMemo(() => {
         </div>
       </Modal>
 
-      <Modal isOpen={!!deletingPost} onClose={() => setDeletingPost(null)} title="Confirm Deletion">
+      <Modal isOpen={!!deletingPost} onClose={() => setDeletingPost(null)} title="Confirm Post Deletion">
         <div className="text-center">
           <p className="text-lg">Are you sure you want to delete this post?</p>
           <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>

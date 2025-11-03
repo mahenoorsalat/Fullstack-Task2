@@ -79,16 +79,12 @@ applyToJob: async (jobId: string): Promise<any> => {
  getProfile: async (): Promise<User> => {
         const user = await apiFetch('/auth/profile', { method: 'GET' }); 
         
-        // --- START FIX: Ensure name and photo fallbacks are applied on frontend state load ---
         if (user.role === 'company') {
             const companyUser = user as Company;
 
-            // 1. ROBUST NAME FALLBACK (Existing fix to ensure currentUserName isn't blank)
             const robustName = companyUser.name || companyUser.description || companyUser.website || 'Your Company Profile';
             companyUser.name = robustName;
 
-            // 2. ROBUST PHOTO FALLBACK (NEW FIX for currentUserPhoto)
-            // Use 'logo', fallback to 'photoUrl' (if it somehow exists), or use an avatar derived from the name.
             if (!companyUser.photoUrl) {
                 // If photoUrl is missing/empty, use logo, or a placeholder based on the name
                 const fallbackPhotoUrl = companyUser.logo 
@@ -122,12 +118,10 @@ applyToJob: async (jobId: string): Promise<any> => {
 addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'comments'>):Promise<BlogPost>=>{
         const response = await apiFetch ('/blog' , {method:"POST" , body : postData });
         
-        // FIX: We must explicitly return the 'post' property from the response object.
         if (response && response.post) {
-            return response.post as BlogPost; // <--- This is the essential change
+            return response.post as BlogPost; 
         }
         
-        // Fallback (should not be reached if backend fix is applied)
         return response as BlogPost;
       } ,
       updateBlogPost : async (postId:string , content:string):Promise<BlogPost>=>{
@@ -148,13 +142,12 @@ addBlogPost:async(postData:Omit<BlogPost , 'id' | 'timestamp' | 'reactions' | 'c
       addComment : async(postId : string , content : string): Promise<BlogPost>=>{
         return apiFetch(`/blog/${postId}/comment` , {method:'POST' , body:{content}})
       },
-      updateComment:async(postId : string , commentId : string , content : string): Promise<BlogPost>=>{
+     updateComment:async(postId : string , commentId : string , content : string): Promise<BlogPost>=>{
        return apiFetch(`/blog/${postId}/comment/${commentId}` , {method:"PUT" , body:{content}})
       }
       ,
       deleteComment: async(postId: string , commentId:string ): Promise<BlogPost>=>{
-        await apiFetch(`/blog/${postId}/comment/${commentId}` , {method : 'DELETE'} );
-        return apiFetch(`/blog/${postId}` , {method  : 'GET'});
+        return apiFetch(`/blog/${postId}/comment/${commentId}` , {method : 'DELETE'} );
       },
     getApplicationsForJob: async (jobId: string): Promise<Application[]> => {
     return apiFetch(`/applications/job/${jobId}`, { method: 'GET' });
