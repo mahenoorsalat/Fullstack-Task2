@@ -82,13 +82,22 @@ const App: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
+            let seekersData = [], companiesData = [], jobsData = [], postsData = [];
             try {
-                const [seekersData, companiesData, jobsData, postsData] = await Promise.all([
+                [seekersData, companiesData, jobsData, postsData] = await Promise.all([
                     api.getSeekers(),
                     api.getCompanies(),
                     api.getJobs(),
                     api.getBlogPosts(),
                 ]);
+                
+                // Admin specific fetch
+                if (currentUserRole === 'admin') {
+                    const adminUsers = await api.getAdminUsers();
+                    seekersData = adminUsers.filter(u => u.role === 'seeker') as JobSeeker[];
+                    companiesData = adminUsers.filter(u => u.role === 'company') as Company[];
+                }
+
                 setSeekers(seekersData);
                 setCompanies(companiesData);
                 setJobs(jobsData);
@@ -110,7 +119,7 @@ const App: React.FC = () => {
             setJobs([]);
             setBlogPosts([]);
         }
-    }, [currentUser]); 
+    }, [currentUser, currentUserRole]); // Added currentUserRole dependency for Admin fetch
 
 const handleApplyJob = async (jobId: string) => {
     if (!currentUser || currentUserRole !== 'seeker') {
@@ -150,7 +159,6 @@ const handleApplyJob = async (jobId: string) => {
                 setCurrentUserRole(userProfile.role);
                 // CRITICAL FIX: Persist login data for the token and the full user profile
                 // The returned object from authenticateUser might not have 'token' on userProfile.user itself.
-                // We assume userProfile has the token:
                 localStorage.setItem('token', (userProfile as any).token); 
                 localStorage.setItem('user', JSON.stringify(userProfile.user));
 
@@ -174,7 +182,7 @@ const handleApplyJob = async (jobId: string) => {
                 setCurrentUser(userProfile.user);
                 setCurrentUserRole(userProfile.role);
                 // CRITICAL FIX: Persist login data for the token and the full user profile
-                // The returned object from registerUser might not have 'token' on userProfile.user itself.
+                // The returned object from registerUser might not have 'token' on userProfile.user itself.
                 localStorage.setItem('token', (userProfile as any).token);
                 localStorage.setItem('user', JSON.stringify(userProfile.user));
 
@@ -256,47 +264,87 @@ const handleApplyJob = async (jobId: string) => {
     }
     
     const handleCompanySaveJob = async (jobData: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
-        const newJob = await api.saveJob(jobData);
-        setJobs(prev => [newJob, ...prev]);
-        setNotification("New job posted successfully!");
+        try {
+            const newJob = await api.saveJob(jobData);
+            setJobs(prev => [newJob, ...prev]);
+            setNotification("New job posted successfully!");
+        } catch (error: any) {
+            setNotification(`Job post failed: ${error.message}`);
+        }
     }
-    
-    const handleAdminDelete = async (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => {
-        // NOTE: You need to implement api.deleteEntity in apiService.ts
-    }
+    
+    // FIX: Implemented Admin Delete Logic
+    const handleAdminDelete = async (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => {
+        try {
+            await api.deleteEntity(type, id);
+            
+            // Update local state based on the type deleted
+            if (type === 'job') {
+                setJobs(prev => prev.filter(j => j.id !== id));
+                setNotification("Job deleted successfully!");
+            } else if (type === 'seeker') {
+                setSeekers(prev => prev.filter(s => s.id !== id));
+                setNotification("Seeker account deleted successfully!");
+            } else if (type === 'company') {
+                setCompanies(prev => prev.filter(c => c.id !== id));
+                setNotification("Company account deleted successfully!");
+            } else if (type === 'blogPost') {
+                setBlogPosts(prev => prev.filter(p => p.id !== id));
+                setNotification("Blog post deleted successfully!");
+            }
+        } catch (error: any) {
+            setNotification(`Deletion failed: ${error.message}`);
+        }
+    }
+
 
     const handleAdminSaveSeeker = async (seeker: JobSeeker) => {
-        // NOTE: You need to implement api.saveSeeker in apiService.ts if the ID exists
-        const savedSeeker = await api.saveSeeker(seeker);
-        if (seekers.some(s => s.id === savedSeeker.id)) {
-            setSeekers(seekers.map(s => s.id === savedSeeker.id ? savedSeeker : s));
-        } else {
-            setSeekers([...seekers, savedSeeker]);
-        }
+        try {
+            const savedSeeker = await api.saveSeeker(seeker);
+            if (seekers.some(s => s.id === savedSeeker.id)) {
+                setSeekers(seekers.map(s => s.id === savedSeeker.id ? savedSeeker : s));
+            } else {
+                setSeekers([...seekers, savedSeeker]);
+            }
+            setNotification("Seeker data saved!");
+        } catch (error: any) {
+             setNotification(`Seeker update failed: ${error.message}`);
+        }
     };
 
     const handleAdminSaveCompany = async (company: Company) => {
-        // NOTE: You need to implement api.saveCompany in apiService.ts if the ID exists
-        const savedCompany = await api.saveCompany(company);
-        if (companies.some(c => c.id === savedCompany.id)) {
-            setCompanies(companies.map(c => c.id === savedCompany.id ? savedCompany : c));
-        } else {
-            setCompanies([...companies, savedCompany]);
-        }
+        try {
+            const savedCompany = await api.saveCompany(company);
+            if (companies.some(c => c.id === savedCompany.id)) {
+                setCompanies(companies.map(c => c.id === savedCompany.id ? savedCompany : c));
+            } else {
+                setCompanies([...companies, savedCompany]);
+            }
+            setNotification("Company data saved!");
+        } catch (error: any) {
+            setNotification(`Company update failed: ${error.message}`);
+        }
     };
     
     const handleAdminSaveJob = async (job: Job | Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
-        const savedJob = await api.saveJob(job);
-        if (jobs.some(j => j.id === savedJob.id)) {
-            setJobs(jobs.map(j => j.id === savedJob.id ? savedJob : j));
-        } else {
-            setJobs([savedJob, ...jobs]);
-        }
+        try {
+            const savedJob = await api.saveJob(job);
+            if (jobs.some(j => j.id === savedJob.id)) {
+                setJobs(jobs.map(j => j.id === savedJob.id ? savedJob : j));
+            } else {
+                setJobs([savedJob, ...jobs]);
+            }
+            setNotification("Job data saved!");
+        } catch (error: any) {
+            setNotification(`Job save failed: ${error.message}`);
+        }
     };
     
+    // FIX: Corrected handleAddBlogPost to include the 'content' field in the payload
     const handleAddBlogPost = async (content: string) => {
         if (!currentUser || !currentUserRole) return;
 
+        // NOTE: The backend recalculates authorName/Photo, but we must pass all required fields.
         let authorName = 'Admin';
         let authorPhotoUrl = `https://i.pravatar.cc/150?u=admin`;
 
@@ -313,9 +361,9 @@ const handleApplyJob = async (jobId: string) => {
             authorName,
             authorRole: currentUserRole,
             authorPhotoUrl,
+            content, // CRITICAL FIX: Add the content field here
         };
 
-        // CRITICAL FIX: Uncomment and implement the API call to save the post
         try {
             const savedPost = await api.addBlogPost(newPostData);
             setBlogPosts(prev => [savedPost, ...prev]);
@@ -325,8 +373,8 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
 
+    // FIX: Completed handleUpdateBlogPost implementation
     const handleUpdateBlogPost = async (postId: string, content: string) => {
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
             const updatedPost = await api.updateBlogPost(postId, content);
             setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
@@ -336,10 +384,11 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
 
+    // FIX: Corrected handleDeleteBlogPost to use api.deleteBlogPost
     const handleDeleteBlogPost = async (postId: string) => {
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
-            if (await api.deleteEntity(postId)) {
+            // Use api.deleteBlogPost which wraps api.deleteEntity('blogPost', postId)
+            if (await api.deleteBlogPost(postId)) { 
                 setBlogPosts(posts => posts.filter(p => p.id !== postId));
                 setNotification("Blog post deleted successfully!");
             }
@@ -348,11 +397,11 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
     
+    // FIX: Completed handlePostReaction implementation
     const handlePostReaction = async (postId: string, reactionType: ReactionType) => {
         if (!currentUser) return;
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
-            // Using the updated api.addOrUpdateReaction signature
+            // Using the correct api.addOrUpdateReaction signature
             const updatedPost = await api.addOrUpdateReaction(postId, reactionType);
             setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
         } catch (error: any) {
@@ -360,10 +409,10 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
 
+    // FIX: Completed handleAddComment implementation
     const handleAddComment = async (postId: string, content: string) => {
         if (!currentUser || !currentUserRole) return;
         
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
             const updatedPost = await api.addComment(postId, content);
             setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
@@ -373,8 +422,8 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
 
+    // FIX: Completed handleUpdateComment implementation
     const handleUpdateComment = async (postId: string, commentId: string, content: string) => {
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
             const updatedPost = await api.updateComment(postId, commentId, content);
             setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
@@ -384,11 +433,12 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
 
+    // FIX: Completed handleDeleteComment implementation
     const handleDeleteComment = async (postId: string, commentId: string) => {
-        // CRITICAL FIX: Uncomment and implement the API call
         try {
             const updatedPost = await api.deleteComment(postId, commentId);
             setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            setNotification("Comment deleted successfully!");
         } catch (error: any) {
             setNotification(`Failed to delete comment: ${error.message}`);
         }
@@ -444,7 +494,8 @@ const handleApplyJob = async (jobId: string) => {
                     jobs={jobs}
                     seekers={seekers}
                     onSaveProfile={handleSaveCompanyProfile}
-                    onSaveJob={handleCompanySaveJob}
+                    onSaveJob={handleAdminSaveJob} // Using the generic save job handler
+                    onDelete={handleAdminDelete} // Passing the delete handler
                 />;
             case 'admin':
                 return <AdminDashboard 
@@ -465,19 +516,19 @@ const handleApplyJob = async (jobId: string) => {
     let currentUserName = 'Admin';
     let currentUserPhoto = `https://i.pravatar.cc/150?u=admin`;
     
-    // START FIX BLOCK: Make photo calculation robust in App.tsx
+    // START FIX BLOCK: Make photo calculation robust in App.tsx
     if (currentUserRole === 'seeker') {
         currentUserName = (currentUser as JobSeeker).name;
         currentUserPhoto = (currentUser as JobSeeker).photoUrl;
     } else if (currentUserRole === 'company') {
         const companyUser = currentUser as Company;
-        // Use the logo if available
+        // Use the logo if available
         currentUserName = companyUser.name;
         currentUserPhoto = companyUser.logo || (currentUser as any).photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyUser.name)}&background=0D83DD&color=fff&size=128`;
-        // The cast to (currentUser as any).photoUrl covers the case where the backend adds it for generic use
-        // and provides a better prop to BlogPage while it waits for its own fetch.
+        // The cast to (currentUser as any).photoUrl covers the case where the backend adds it for generic use
+        // and provides a better prop to BlogPage while it waits for its own fetch.
     }
-    // END FIX BLOCK
+    // END FIX BLOCK
 
     return (
         <div className="min-h-screen">

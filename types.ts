@@ -111,3 +111,10 @@ export interface BlogPost {
   companyContactInfo?: string;
   companyOfficeAddress?: string;
 }
+
+export interface Application {
+  _id: string; // The ID of the application record itself
+  jobId: string;
+  seekerId: string;
+  status: 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
+}
