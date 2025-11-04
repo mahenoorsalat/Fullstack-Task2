@@ -1,28 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Job, Company } from '../types';
 import { BriefcaseIcon, CurrencyDollarIcon, MapPinIcon } from './icons';
 
 interface JobDetailsProps {
   job: Job;
   company: Company;
-  onApply: (jobId: string) => void;
+  onApply: (jobId: string) => Promise<void>;
   isApplied: boolean;
   userRole: 'seeker' | 'company' | 'admin';
   onLeaveReview: (companyId: string) => void;
 }
 
 const JobDetails: React.FC<JobDetailsProps> = ({ job, company, onApply, isApplied, userRole, onLeaveReview }) => {
-    // Helper function for the logo fallback
+    const [isApplying, setIsApplying] = useState(false);
+
     const getCompanyLogoUrl = (company: Company) => {
-        // Use company.logo if available, otherwise generate a placeholder avatar based on the company's name
         return company.logo 
             || `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name || 'Company')}&background=4F46E5&color=fff&size=80`;
     };
-    
+    
+    const handleApply = async () => {
+        if (isApplied || isApplying) return;
+
+        setIsApplying(true);
+        try {
+            await onApply(job.id);
+
+        } catch (error) {
+            console.error("Job application failed:", error);
+        } finally {
+            setIsApplying(false);
+        }
+    };
+    
   return (
     <div className="space-y-6">
       <div className="flex items-start">
-        {/* FIX: Use getCompanyLogoUrl for robust image source */}
         <img 
           src={getCompanyLogoUrl(company)} 
           alt={`${company.name} logo`} 
@@ -74,15 +87,15 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, company, onApply, isApplie
          )}
          <div className={userRole !== 'seeker' ? 'w-full text-right' : ''}>
             <button
-            onClick={() => onApply(job.id)}
-            disabled={isApplied}
+            onClick={handleApply}
+            disabled={isApplied || isApplying}
             className={`px-6 py-3 rounded-lg font-bold text-white transition-colors duration-300 ${
-                isApplied
+                isApplied || isApplying
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-primary hover:bg-primary-focus focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'
             }`}
             >
-            {isApplied ? 'Already Applied' : 'Apply Now'}
+            {isApplied ? 'Already Applied' : isApplying ? 'Applying...' : 'Apply Now'}
             </button>
          </div>
       </div>

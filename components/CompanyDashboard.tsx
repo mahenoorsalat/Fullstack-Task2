@@ -55,9 +55,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
         setJobApplications([]); 
         setViewingApplicantsForJob(job);
 
-        // No need to fetch jobs here, we are viewing applications
         try {
-            // Assuming ApplicationData type is correct for the API response
+          
             const applications: ApplicationData[] = await api.getApplicationsForJob(job.id); 
             setJobApplications(applications);
         } catch (error) {
@@ -84,13 +83,11 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
             setIsEditModalOpen(false);
         };
 
-    // Function to handle both creation and editing of a job
     const handleSaveJob = (jobData: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'> | Job) => {
-        // We pass the full job object (if editing) or the Omit type (if creating)
         onSaveJob(jobData);
         setIsPostJobModalOpen(false);
-        setJobToEdit(null); // Clear editing state
-        fetchCompanyJobs(); // Refresh the list after save
+        setJobToEdit(null); 
+        fetchCompanyJobs(); 
     };
     
     // Function to open the Edit Job Modal
