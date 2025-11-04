@@ -17,7 +17,6 @@ interface JobSearchParams {
     type?: JobType | string;
     minSalary?: number;
     companyName?: string; 
-    experienceLevel?: string; 
 }
 
 
@@ -38,8 +37,9 @@ export const api = {
         localStorage.setItem('userToken' , token);
         return{user : userData as User , role : userData.role as UserRole };
        }
+       // FIX: The compiler expects this 'throw' statement here, correctly outside the 'if' block.
        throw new Error ('Login Failed : no token received')
-     }, 
+     }, // This closing brace and comma end the authenticateUser method.
 
       registerUser: async (name: string, email: string, password: string, role: UserRole): Promise<{ user: User, role: UserRole }> => {
         const response = await apiFetch('/auth/register', {
@@ -74,18 +74,22 @@ export const api = {
             return null;
         }
     } ,
-  getSeekers: async() : Promise<JobSeeker[]>=>{
+    getSeekers: async() : Promise<JobSeeker[]>=>{
         return apiFetch('/user?role=seeker' , { method : 'GET'})
       },
       getCompanies : async(): Promise<Company[]>=>{
         return apiFetch('/user?role=company' , { method : 'GET'})
       },
+      // FIX: Updated getJobs to accept search params
       getJobs : async(params: JobSearchParams = {}): Promise<Job[]>=>{
         const query = new URLSearchParams(params as Record<string, any>).toString();
          const endpoint = query ? `/jobs?${query}` : '/jobs';
         return apiFetch(endpoint , {method:'GET'})
       },
-     
+     getJobById: async (jobId: string): Promise<Job> => {
+    // This calls the GET /api/v1/jobs/:id endpoint you set up on the backend
+    return apiFetch(`/jobs/${jobId}`, { method: 'GET' });
+},
       getCompanyJobs: async (): Promise<Job[]> => {
         return apiFetch('/jobs/employer/jobs', { method: 'GET' });
       },
