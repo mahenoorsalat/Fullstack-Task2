@@ -1,14 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react'; // ADDED useEffect
-import { Job, Company, JobSeeker, Review, JobType, Application } from '../types.ts'; // Explicit .ts extension. ADDED Application
-import JobCard from './JobCard.tsx'; // Explicit .tsx extension
-import Modal from './Modal.tsx'; // Explicit .tsx extension
-import JobDetails from './JobDetails.tsx'; // Explicit .tsx extension
-import ResumeBooster from './ResumeBooster.tsx'; // Explicit .tsx extension
-import LeaveReviewForm from './LeaveReviewForm.tsx'; // Explicit .tsx extension
-import JobSeekerProfileEdit from './JobSeekerProfileEdit.tsx'; // Explicit .tsx extension
-import { PencilIcon, MagnifyingGlassIcon } from './icons.tsx'; // Explicit .tsx extension
-import JobAlertsManager from './JobAlertsManager.tsx'; // Explicit .tsx extension
-import { api } from '../services/apiService'; // ADDED api import
+import React, { useState, useMemo, useEffect, useCallback } from 'react'; // ADDED useCallback
+import { Job, Company, JobSeeker, Review, JobType, Application } from '../types.ts'; 
+import JobCard from './JobCard.tsx'; 
+import Modal from './Modal.tsx'; 
+import JobDetails from './JobDetails.tsx'; 
+import ResumeBooster from './ResumeBooster.tsx'; 
+import LeaveReviewForm from './LeaveReviewForm.tsx'; 
+import JobSeekerProfileEdit from './JobSeekerProfileEdit.tsx'; 
+import { PencilIcon, MagnifyingGlassIcon } from './icons.tsx'; 
+import JobAlertsManager from './JobAlertsManager.tsx'; 
+import { api } from '../services/apiService'; 
 
 // NEW PROP INTERFACES
 interface FilterState {
@@ -28,7 +28,7 @@ interface SetFilterState {
 
 interface SeekerDashboardProps {
   seeker: JobSeeker;
-  jobs: Job[]; // Now the pre-filtered result from the server
+  jobs: Job[]; 
   companies: Company[];
   onAddReview: (companyId: string, review: Omit<Review, 'id' | 'date' | 'authorId'>) => void;
   onSaveProfile: (updatedSeeker: JobSeeker) => void;
@@ -40,13 +40,13 @@ interface SeekerDashboardProps {
 
 const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ 
     seeker, 
-    jobs, // jobs is now pre-filtered from server
+    jobs, 
     companies, 
     onAddReview, 
     onSaveProfile, 
     onApplyJob,
-    filterState, // NEW
-    setFilterState // NEW
+    filterState, 
+    setFilterState 
 }) => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
@@ -65,93 +65,91 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
   const { searchQuery, companyQuery, selectedJobType, selectedExperience, minSalary } = filterState;
   const { setSearchQuery, setCompanyQuery, setSelectedJobType, setSelectedExperience, setMinSalary } = setFilterState;
 
-    // NEW useEffect: Fetch the seeker's applications and their statuses
-    useEffect(() => {
-        const fetchApplications = async () => {
-          setIsLoadingApplications(true);
-          try {
+    // REFACTORED: Put fetch logic into a stable callback
+    const fetchApplications = useCallback(async () => {
+        setIsLoadingApplications(true);
+        try {
             // Call the new API function
             const applications = await api.getSeekerApplications();
             setSeekerApplications(applications);
-          } catch (error) {
+        } catch (error) {
             console.error("Failed to fetch seeker applications:", error);
-          } finally {
+        } finally {
             setIsLoadingApplications(false);
-          }
-        };
+        }
+    }, [seeker.id]); // Dependency on seeker.id is correct
+
+    // useEffect: Initial fetch and re-fetch when seeker changes
+    useEffect(() => {
         // Fetch only if the seeker ID is available
         if(seeker.id) {
             fetchApplications();
         }
-      }, [seeker.id]); // Refetch when seeker changes
+    }, [seeker.id, fetchApplications]); 
       
-    // NEW Helper function: Find the status for a given jobId
+    // Helper function: Find the status for a given jobId
     const getApplicationStatus = (jobId: string): string | undefined => {
-        // Find the application by checking both job ID fields (jobId property on Application, and id/id property on Job)
+        // Find the application by checking both job ID fields
         const application = seekerApplications.find(app => app.jobId === jobId);
         return application?.status;
     }
 
 
-  const handleViewDetails = (jobId: string) => {
-    setSelectedJobId(jobId);
-  };
-  
-  const handleCloseModal = () => {
-    setSelectedJobId(null);
-  };
-  
-  const handleApply = (jobId: string) => {
-    // FIX: Call the parent's API handler (onApplyJob) and let the parent update the seeker state.
-    if (!appliedJobs.includes(jobId)) {
-        onApplyJob(jobId);
+    const handleViewDetails = (jobId: string) => {
+        setSelectedJobId(jobId);
+    };
+    
+    const handleCloseModal = () => {
+        setSelectedJobId(null);
+    };
+    
+    const handleApply = async (jobId: string) => { // ADDED async 
+        // Call the parent's API handler (onApplyJob) and let the parent update the seeker state.
+        if (!appliedJobs.includes(jobId)) {
+            await onApplyJob(jobId); // Parent handles API call
+            
+            // CRITICAL FIX: After successfully applying, re-fetch the application list 
+            // to ensure the status for the newly applied job is available (it should be 'Applied').
+            await fetchApplications(); 
+        }
+    };
+
+    const handleLeaveReview = (companyId: string) => {
+        const companyToReview = companies.find(c => c.id === companyId);
+        if (companyToReview) {
+            setSelectedJobId(null); // Close details modal first
+            setReviewingCompany(companyToReview);
+            setIsReviewModalOpen(true);
+        }
+    };
+
+    const handleSubmitReview = (review: Omit<Review, 'id' | 'date' | 'authorId'>) => {
+        if (reviewingCompany) {
+            onAddReview(reviewingCompany.id, { ...review, reviewerName: seeker.name });
+            setIsReviewModalOpen(false);
+            setReviewingCompany(null);
+        }
+    };
+
+    const handleSaveProfile = (updatedSeeker: JobSeeker) => {
+        onSaveProfile(updatedSeeker);
+        setIsEditModalOpen(false);
+    };
+    
+    const experienceLevels = useMemo(() => [...new Set(jobs.map(j => j.experienceLevel))], [jobs]);
+    
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setCompanyQuery('');
+        setSelectedJobType('');
+        setSelectedExperience('');
+        setMinSalary(0);
     }
-    // After a successful apply, the parent component should ideally re-fetch the seeker object
-    // and the applications list should be updated. For simplicity, we can manually update the local appliedJobs list 
-    // and trigger a re-fetch of applications if the parent doesn't handle application list update.
-    // Given the backend updates appliedJobs on the User, the parent should handle state update.
-  };
 
-  const handleLeaveReview = (companyId: string) => {
-    const companyToReview = companies.find(c => c.id === companyId);
-    if (companyToReview) {
-        setSelectedJobId(null); // Close details modal first
-        setReviewingCompany(companyToReview);
-        setIsReviewModalOpen(true);
-    }
-  };
-
-  const handleSubmitReview = (review: Omit<Review, 'id' | 'date' | 'authorId'>) => {
-    if (reviewingCompany) {
-        onAddReview(reviewingCompany.id, { ...review, reviewerName: seeker.name });
-        setIsReviewModalOpen(false);
-        setReviewingCompany(null);
-    }
-  };
-
-  const handleSaveProfile = (updatedSeeker: JobSeeker) => {
-    onSaveProfile(updatedSeeker);
-    setIsEditModalOpen(false);
-  };
-  
-  // experienceLevels calculation remains
-  const experienceLevels = useMemo(() => [...new Set(jobs.map(j => j.experienceLevel))], [jobs]);
-
-  // REMOVED: The entire 'filteredJobs' useMemo hook for client-side filtering.
-  
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setCompanyQuery('');
-    setSelectedJobType('');
-    setSelectedExperience('');
-    setMinSalary(0);
-  }
-
-  // FIX 1: Use the populated 'employerId' field which contains the company object.
-  const selectedJob = jobs.find(j => j.id === selectedJobId);
-  const selectedJobCompany = selectedJob && selectedJob.employerId && 'id' in selectedJob.employerId
-      ? selectedJob.employerId as Company 
-      : null;
+    const selectedJob = jobs.find(j => j.id === selectedJobId);
+    const selectedJobCompany = selectedJob && selectedJob.employerId && 'id' in selectedJob.employerId
+        ? selectedJob.employerId as Company 
+        : null;
 
   return (
     <main className="container mx-auto p-4 md:p-8">
@@ -166,21 +164,19 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                 <PencilIcon className="h-5 w-5" />
               </button>
               <h3 className="text-xl font-bold text-neutral mb-4">Welcome, {seeker.name}!</h3>
-<img 
-
-                 src={seeker.photoUrl || 'https://placehold.co/96x96/4F46E5/FFFFFF?text=P'} 
-                 alt={seeker.name} 
-                 className="h-24 w-24 rounded-full mx-auto mb-4 border-4 border-primary"
-              />              <p className="text-center text-gray-600">{seeker.email}</p>
+                <img 
+                    src={seeker.photoUrl || 'https://placehold.co/96x96/4F46E5/FFFFFF?text=P'} 
+                    alt={seeker.name} 
+                    className="h-24 w-24 rounded-full mx-auto mb-4 border-4 border-primary"
+                />              
+                <p className="text-center text-gray-600">{seeker.email}</p>
           </div>
           <JobAlertsManager seeker={seeker} onSave={onSaveProfile} />
           <ResumeBooster />
         </div>
         <div className="lg:col-span-2">
           <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-interactive mb-6">
-            {/* Filter inputs use the destructured setters from props */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                {/* 1. Title/Location Search (Spans 2 columns on large screens) */}
                 <div className="md:col-span-2 lg:col-span-2">
                     <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search Title or Location</label>
                     <div className="relative mt-1">
@@ -190,14 +186,12 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                         <input type="text" id="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g., 'React Developer', 'London'" className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
                     </div>
                 </div>
-                {/* 2. Company Name Search (Spans 1 column) */}
                 <div className="md:col-span-2 lg:col-span-1">
                     <label htmlFor="company-search" className="block text-sm font-medium text-gray-700">Company Name</label>
                     <div className="relative mt-1">
                         <input type="text" id="company-search" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} placeholder="e.g., 'Innovate Inc.'" className="block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:border-primary focus:ring-primary sm:text-sm" />
                     </div>
                 </div>
-                {/* 3. Job Type */}
                 <div>
                     <label htmlFor="jobType" className="block text-sm font-medium text-gray-700">Job Type</label>
                     <select id="jobType" value={selectedJobType} onChange={(e) => setSelectedJobType(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary focus:outline-none focus:ring-primary sm:text-sm">
@@ -205,7 +199,6 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                         {Object.values(JobType).map(type => <option key={type} value={type}>{type}</option>)}
                     </select>
                 </div>
-                {/* 4. Experience */}
                 <div>
                     <label htmlFor="experience" className="block text-sm font-medium text-gray-700">Experience</label>
                     <select id="experience" value={selectedExperience} onChange={(e) => setSelectedExperience(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary focus:outline-none focus:ring-primary sm:text-sm">
@@ -213,12 +206,10 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                         {experienceLevels.map(level => <option key={level} value={level}>{level}</option>)}
                     </select>
                 </div>
-                {/* 5. Min Salary */}
                 <div>
                     <label htmlFor="salary" className="block text-sm font-medium text-gray-700">Min Salary: ${minSalary.toLocaleString()}</label>
                     <input type="range" id="salary" min="0" max="200000" step="10000" value={minSalary} onChange={(e) => setMinSalary(Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2" />
                 </div>
-                {/* 6. Reset (Spans 1 column on large screens) */}
                 <div className="md:col-span-2 lg:col-span-1">
                     <button onClick={handleResetFilters} className="w-full rounded-md bg-gray-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">Reset</button>
                 </div>
@@ -232,18 +223,15 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
           
           {jobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {jobs // Use the jobs prop directly, as it's already filtered
-                    // FIX 2a: Filter only jobs where employerId (company) is populated
-                    // .filter(job => job.employerId && 'id' in job.employerId)
+                {jobs 
                     .map(job => {
-                      // FIX 2b: Directly use the populated employerId as the Company object
                       const company = job.employerId as Company;
                       const status = getApplicationStatus(job.id); // GET STATUS
                       return (
                           <JobCard 
                               key={job._id || job.id}
                               job={job}
-                              company={company} // Pass the correct company object
+                              company={company} 
                               onApply={handleApply}
                               onViewDetails={handleViewDetails}
                               isApplied={appliedJobs.includes(job.id)}
