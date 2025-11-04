@@ -9,32 +9,56 @@ import JobSeekerProfileEdit from './JobSeekerProfileEdit.tsx'; // Explicit .tsx 
 import { PencilIcon, MagnifyingGlassIcon } from './icons.tsx'; // Explicit .tsx extension
 import JobAlertsManager from './JobAlertsManager.tsx'; // Explicit .tsx extension
 
+// NEW PROP INTERFACES
+interface FilterState {
+    searchQuery: string;
+    companyQuery: string;
+    selectedJobType: string;
+    selectedExperience: string;
+    minSalary: number;
+}
+interface SetFilterState {
+    setSearchQuery: (s: string) => void;
+    setCompanyQuery: (s: string) => void;
+    setSelectedJobType: (s: string) => void;
+    setSelectedExperience: (s: string) => void;
+    setMinSalary: (n: number) => void;
+}
+
 interface SeekerDashboardProps {
   seeker: JobSeeker;
-  jobs: Job[];
+  jobs: Job[]; // Now the pre-filtered result from the server
   companies: Company[];
   onAddReview: (companyId: string, review: Omit<Review, 'id' | 'date' | 'authorId'>) => void;
   onSaveProfile: (updatedSeeker: JobSeeker) => void;
-  // NEW PROP: Function to handle the job application API call
   onApplyJob: (jobId: string) => void; 
+  // NEW PROPS
+  filterState: FilterState;
+  setFilterState: SetFilterState;
 }
 
-const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, companies, onAddReview, onSaveProfile, onApplyJob }) => {
+const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ 
+    seeker, 
+    jobs, // jobs is now pre-filtered from server
+    companies, 
+    onAddReview, 
+    onSaveProfile, 
+    onApplyJob,
+    filterState, // NEW
+    setFilterState // NEW
+}) => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
-  // FIX: Removed local state (setAppliedJobs). Use seeker prop directly as source of truth.
   const appliedJobs = seeker.appliedJobs ?? [];
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewingCompany, setReviewingCompany] = useState<Company | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Search and Filter State
-  const [searchQuery, setSearchQuery] = useState(''); // Handles Title and Location (keyword in backend)
-  const [companyQuery, setCompanyQuery] = useState(''); // NEW: Handles Company Name
-  const [selectedJobType, setSelectedJobType] = useState('');
-  const [selectedExperience, setSelectedExperience] = useState('');
-  const [minSalary, setMinSalary] = useState(0);
+  // DESTRUCTURE FILTER PROPS FOR USE
+  const { searchQuery, companyQuery, selectedJobType, selectedExperience, minSalary } = filterState;
+  const { setSearchQuery, setCompanyQuery, setSelectedJobType, setSelectedExperience, setMinSalary } = setFilterState;
+
 
   const handleViewDetails = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -73,36 +97,14 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
     setIsEditModalOpen(false);
   };
   
+  // experienceLevels calculation remains
   const experienceLevels = useMemo(() => [...new Set(jobs.map(j => j.experienceLevel))], [jobs]);
 
-  const filteredJobs = useMemo(() => {
-    return jobs.filter(job => {
-      const company = companies.find(c => c.id === job.companyId);
-      if (!company) return false;
-
-      // FIX: Updated search logic to separate Title/Location and Company Name checks
-      const matchesTitleOrLocation = searchQuery.toLowerCase() === '' ||
-        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.location.toLowerCase().includes(searchQuery.toLowerCase());
-        
-      const matchesCompanyName = companyQuery.toLowerCase() === '' ||
-        company.name.toLowerCase().includes(companyQuery.toLowerCase());
-
-
-      const matchesJobType = selectedJobType === '' || job.jobType === selectedJobType;
-      
-      const matchesExperience = selectedExperience === '' || job.experienceLevel === selectedExperience;
-
-      const matchesSalary = job.salaryMin >= minSalary;
-
-      // Check all filter conditions
-      return matchesTitleOrLocation && matchesCompanyName && matchesJobType && matchesExperience && matchesSalary;
-    });
-  }, [jobs, companies, searchQuery, companyQuery, selectedJobType, selectedExperience, minSalary]);
-
+  // REMOVED: The entire 'filteredJobs' useMemo hook for client-side filtering.
+  
   const handleResetFilters = () => {
     setSearchQuery('');
-    setCompanyQuery(''); // FIX: Reset new company search state
+    setCompanyQuery('');
     setSelectedJobType('');
     setSelectedExperience('');
     setMinSalary(0);
@@ -136,7 +138,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
         </div>
         <div className="lg:col-span-2">
           <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-interactive mb-6">
-            {/* FIX: Changed grid to 5 columns in large view, and split the search bar into two inputs */}
+            {/* Filter inputs use the destructured setters from props */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 {/* 1. Title/Location Search (Spans 2 columns on large screens) */}
                 <div className="md:col-span-2 lg:col-span-2">
@@ -183,11 +185,11 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
             </div>
           </div>
 
-          <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({filteredJobs.length}) </h2>
+          <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({jobs.length}) </h2>
           
-          {filteredJobs.length > 0 ? (
+          {jobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredJobs
+                {jobs // Use the jobs prop directly, as it's already filtered
                     .filter(job => companies.find(c => c.id === job.companyId))
                     .map(job => {
                       const company = companies.find(c => c.id === job.companyId);
@@ -198,7 +200,6 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
                               company={company!}
                               onApply={handleApply}
                               onViewDetails={handleViewDetails}
-                              // FIX: Use the appliedJobs derived directly from the seeker prop
                               isApplied={appliedJobs.includes(job.id)}
                           />
                       );
@@ -223,7 +224,6 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({ seeker, jobs, compani
             job={selectedJob} 
             company={selectedJobCompany}
             onApply={handleApply}
-            // FIX: Use the appliedJobs derived directly from the seeker prop
             isApplied={appliedJobs.includes(selectedJob.id)}
             userRole="seeker"
             onLeaveReview={handleLeaveReview}
