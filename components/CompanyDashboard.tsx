@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react'; 
-import { Company, Job, JobSeeker } from '../types';
+import { Company, Job, JobSeeker, Application } from '../types'; // ADDED Application
 import Modal from './Modal';
 import CompanyProfileEdit from './CompanyProfileEdit';
 import PostJobForm from './PostJobForm';
 import { PencilIcon, PlusCircleIcon, BriefcaseIcon, TrashIcon } from './icons'; // ADDED TrashIcon
-import { api } from '../services/apiService';
+import { api, ApplicationStatus } from '../services/apiService'; // ADDED ApplicationStatus type
 
-interface ApplicationData {
-    status: 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
-    jobId: string;
-    _id: string; 
+// NOTE: ApplicationData uses the populated JobSeeker type for seekerId, matching the backend populate logic.
+interface ApplicationData extends Application {
     seekerId: JobSeeker; 
 }
 
@@ -23,6 +21,9 @@ interface CompanyDashboardProps {
 }
 
 const DEFAULT_LOGO_URL = '/assets/default-company-logo.png'; 
+
+// NEW CONST: Statuses that the company is allowed to set (excluding 'Applied')
+const STATUS_OPTIONS: ApplicationStatus[] = ['Shortlisted', 'Interviewed', 'Hired', 'Rejected'];
 
 // FIX: Provide a default function for onDelete to prevent TypeError if the parent doesn't pass it.
 const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, onSaveProfile, onSaveJob, onDelete = async () => {} }) => { 
@@ -40,7 +41,9 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
 
     const [jobApplications, setJobApplications] = useState<ApplicationData[]>([]);
     const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
-    
+    // NEW STATE: To handle loading state for status update
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
     const fetchCompanyJobs = async () => {
         try {
             const jobs = await api.getCompanyJobs(); 
@@ -65,6 +68,30 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
             setIsLoadingApplicants(false);
         }
     };
+    
+    // NEW: Function to handle status update
+    const handleUpdateStatus = async (applicationId: string, newStatus: ApplicationStatus) => {
+        setIsUpdatingStatus(true);
+        try {
+            // Call the new API function
+            const updatedApplication = await api.updateApplicationStatus(applicationId, newStatus);
+
+            // Update local state (jobApplications) to reflect the new status
+            setJobApplications(prevApplications => 
+                prevApplications.map(app => 
+                    app._id === updatedApplication._id 
+                        ? { ...app, status: updatedApplication.status as Application['status'] } // Cast status to match local ApplicationData type
+                        : app
+                ) as ApplicationData[] // Cast the entire result back to ApplicationData[]
+            );
+
+        } catch (error) {
+            console.error("Failed to update application status:", error);
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
 
     useEffect(() => {
         const newLogo = company.logo || (company as any).photoUrl;
@@ -247,8 +274,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                                 {jobApplications.map((application) => (
                                     <div key={application._id || application.seekerId.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
                                         <img src={application.seekerId.photoUrl} alt={application.seekerId.name} className="h-12 w-12 rounded-full mr-4"/>
-                                        <div>
-                                            <p className="font-semibold">{application.seekerId.name} <span className="text-xs text-secondary ml-2">({application.status})</span></p>
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{application.seekerId.name}</p>
                                             <p className="text-sm text-gray-600">{application.seekerId.email}</p>
                                             
                                             {application.seekerId.resumeUrl && application.seekerId.resumeUrl.trim() !== '' ? (
@@ -256,6 +283,26 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ company, seekers, o
                                             ) : (
                                                 <p className="text-sm text-gray-400">Resume not uploaded</p>
                                             )}
+                                        </div>
+                                        
+                                        {/* NEW: Status Dropdown */}
+                                        <div className="ml-4 flex items-center space-x-2">
+                                            <label htmlFor={`status-${application._id}`} className="sr-only">Status:</label>
+                                            <select 
+                                                id={`status-${application._id}`}
+                                                value={application.status}
+                                                // Call the update function when status changes
+                                                onChange={(e) => handleUpdateStatus(application._id, e.target.value as ApplicationStatus)}
+                                                className="rounded-md border-gray-300 text-sm py-1 pr-8 focus:border-secondary focus:ring-secondary"
+                                                disabled={isUpdatingStatus}
+                                            >
+                                                {/* Always include the current status, even if it's 'Applied' */}
+                                                <option value="Applied" disabled>Applied</option> 
+                                                {STATUS_OPTIONS.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                            {isUpdatingStatus && <span className="text-xs text-secondary">Updating...</span>}
                                         </div>
                                     </div>
                                 ))}

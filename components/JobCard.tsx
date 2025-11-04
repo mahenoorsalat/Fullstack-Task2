@@ -8,10 +8,24 @@ interface JobCardProps {
   isApplied: boolean;
   onViewDetails: (jobId: string) => void;
   onApply: (jobId: string) => void;
+  // NEW PROP: To display the application status
+  applicationStatus: string | undefined;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, company, isApplied, onViewDetails, onApply }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, company, isApplied, onViewDetails, onApply, applicationStatus }) => {
   const applicantsCount = job.applicants?.length ?? 0;
+
+  // Helper function to determine the color/badge for status
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+        case 'Shortlisted': return 'bg-yellow-100 text-yellow-800';
+        case 'Interviewed': return 'bg-indigo-100 text-indigo-800';
+        case 'Hired': return 'bg-green-100 text-green-800';
+        case 'Rejected': return 'bg-red-100 text-red-800';
+        case 'Applied': 
+        default: return 'bg-blue-100 text-blue-800';
+    }
+  }
 
   // FIX: Add a robust function for logo URL with a name-based avatar fallback
   const getCompanyLogoUrl = (company: Company) => {
@@ -37,6 +51,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, company, isApplied, onViewDetail
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-500">{job.jobType}</p>
+          {/* NEW: Display application status */}
+          {applicationStatus && (
+            <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-medium mt-1 ${getStatusBadge(applicationStatus)}`}>
+              Status: {applicationStatus}
+            </span>
+          )}
         </div>
       </div>
 

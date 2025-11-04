@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Job, Company, JobSeeker, Review, JobType } from '../types.ts'; // Explicit .ts extension
+import React, { useState, useMemo, useEffect } from 'react'; // ADDED useEffect
+import { Job, Company, JobSeeker, Review, JobType, Application } from '../types.ts'; // Explicit .ts extension. ADDED Application
 import JobCard from './JobCard.tsx'; // Explicit .tsx extension
 import Modal from './Modal.tsx'; // Explicit .tsx extension
 import JobDetails from './JobDetails.tsx'; // Explicit .tsx extension
@@ -8,6 +8,7 @@ import LeaveReviewForm from './LeaveReviewForm.tsx'; // Explicit .tsx extension
 import JobSeekerProfileEdit from './JobSeekerProfileEdit.tsx'; // Explicit .tsx extension
 import { PencilIcon, MagnifyingGlassIcon } from './icons.tsx'; // Explicit .tsx extension
 import JobAlertsManager from './JobAlertsManager.tsx'; // Explicit .tsx extension
+import { api } from '../services/apiService'; // ADDED api import
 
 // NEW PROP INTERFACES
 interface FilterState {
@@ -55,9 +56,41 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
   const [reviewingCompany, setReviewingCompany] = useState<Company | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  // NEW STATE: Applications for the seeker
+  const [seekerApplications, setSeekerApplications] = useState<Application[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+
+
   // DESTRUCTURE FILTER PROPS FOR USE
   const { searchQuery, companyQuery, selectedJobType, selectedExperience, minSalary } = filterState;
   const { setSearchQuery, setCompanyQuery, setSelectedJobType, setSelectedExperience, setMinSalary } = setFilterState;
+
+    // NEW useEffect: Fetch the seeker's applications and their statuses
+    useEffect(() => {
+        const fetchApplications = async () => {
+          setIsLoadingApplications(true);
+          try {
+            // Call the new API function
+            const applications = await api.getSeekerApplications();
+            setSeekerApplications(applications);
+          } catch (error) {
+            console.error("Failed to fetch seeker applications:", error);
+          } finally {
+            setIsLoadingApplications(false);
+          }
+        };
+        // Fetch only if the seeker ID is available
+        if(seeker.id) {
+            fetchApplications();
+        }
+      }, [seeker.id]); // Refetch when seeker changes
+      
+    // NEW Helper function: Find the status for a given jobId
+    const getApplicationStatus = (jobId: string): string | undefined => {
+        // Find the application by checking both job ID fields (jobId property on Application, and id/id property on Job)
+        const application = seekerApplications.find(app => app.jobId === jobId);
+        return application?.status;
+    }
 
 
   const handleViewDetails = (jobId: string) => {
@@ -73,6 +106,10 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
     if (!appliedJobs.includes(jobId)) {
         onApplyJob(jobId);
     }
+    // After a successful apply, the parent component should ideally re-fetch the seeker object
+    // and the applications list should be updated. For simplicity, we can manually update the local appliedJobs list 
+    // and trigger a re-fetch of applications if the parent doesn't handle application list update.
+    // Given the backend updates appliedJobs on the User, the parent should handle state update.
   };
 
   const handleLeaveReview = (companyId: string) => {
@@ -188,7 +225,10 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
             </div>
           </div>
 
-          <h2 className="text-3xl font-bold text-neutral mb-6">Open Positions ({jobs.length}) </h2>
+          <h2 className="text-3xl font-bold text-neutral mb-6">
+            Open Positions ({jobs.length}) 
+            {isLoadingApplications && <span className="text-sm text-gray-500 ml-4">(Loading statuses...)</span>}
+          </h2>
           
           {jobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -198,6 +238,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                     .map(job => {
                       // FIX 2b: Directly use the populated employerId as the Company object
                       const company = job.employerId as Company;
+                      const status = getApplicationStatus(job.id); // GET STATUS
                       return (
                           <JobCard 
                               key={job._id || job.id}
@@ -206,6 +247,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
                               onApply={handleApply}
                               onViewDetails={handleViewDetails}
                               isApplied={appliedJobs.includes(job.id)}
+                              applicationStatus={status} // PASS NEW PROP
                           />
                       );
                     })}
@@ -232,6 +274,7 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
             isApplied={appliedJobs.includes(selectedJob.id)}
             userRole="seeker"
             onLeaveReview={handleLeaveReview}
+            applicationStatus={getApplicationStatus(selectedJob.id)} // PASS NEW PROP
           />
         </Modal>
       )}

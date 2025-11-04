@@ -10,6 +10,9 @@
 import { Job, Company, JobSeeker, Admin, Review, BlogPost, ReactionType, Reaction, Comment, JobType, LocationType, Application } from '../types';
 import { apiFetch } from './apiClient'
 
+// NEW: Define the type for the status update parameter
+export type ApplicationStatus = Application['status']; // Reuses the type from Application interface
+
 // NEW: Define the search parameters interface (needed for getJobs, included for completeness)
 interface JobSearchParams {
     keyword?: string; 
@@ -25,7 +28,7 @@ type User = JobSeeker | Company | Admin;
 
 // --- API FUNCTIONS ---
 export const api = {
-    authenticateUser: async (email: String , password : String , role : UserRole): Promise<{ user: User , role: UserRole}>  =>{
+    authenticateUser: async (email: String , password : String , role : UserRole): Promise<{ user: User , role: UserRole}>  =>{
        const response = await apiFetch('/auth/login' , {
         method : 'POST' , 
         body: {email , password , role}, 
@@ -96,6 +99,20 @@ export const api = {
     applyToJob: async (jobId: string): Promise<any> => {
         return apiFetch(`/applications/job/${jobId}`, { method: 'POST' }); 
     },
+    // NEW FUNCTION: For Job Seeker to get all their applications
+    getSeekerApplications: async (): Promise<Application[]> => {
+        // Corresponds to the backend GET /api/applications/
+        return apiFetch('/applications', { method: 'GET' });
+    },
+    
+    // NEW FUNCTION: For Company/Admin to update application status
+    updateApplicationStatus: async (applicationId: string, status: ApplicationStatus): Promise<Application> => {
+        // Corresponds to the backend PUT /api/applications/:id/status
+        return apiFetch(`/applications/${applicationId}/status`, { 
+            method: 'PUT',
+            body: { status } // Pass the new status in the request body
+        });
+    },
     getProfile: async (): Promise<User> => {
         const user = await apiFetch('/auth/profile', { method: 'GET' }); 
         
