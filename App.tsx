@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
-import RegisterPage from './components/RegisterPage'; 
+import RegisterPage from './components/RegisterPage'; 
 import SeekerDashboard from './components/SeekerDashboard';
 import CompanyDashboard from './components/CompanyDashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -49,14 +49,14 @@ const App: React.FC = () => {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-    
+    
     // Auth State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [isRegistering, setIsRegistering] = useState(false); 
-    
+    const [isRegistering, setIsRegistering] = useState(false); 
+    
     // UI State
     const [activeView, setActiveView] = useState<ActiveView>('dashboard');
     const [notification, setNotification] = useState<string | null>(null);
@@ -94,7 +94,7 @@ const App: React.FC = () => {
                     api.getJobs(),
                     api.getBlogPosts(),
                 ]);
-                
+                
                 // Admin specific fetch
                 if (currentUserRole === 'admin') {
                     const adminUsers = await api.getAdminUsers();
@@ -133,7 +133,7 @@ const handleApplyJob = async (jobId: string) => {
         setNotification("Must be logged in as a Seeker to apply.");
         return;
     }
-    
+    
     const currentSeeker = currentUser as JobSeeker;
     const currentAppliedJobs = currentSeeker.appliedJobs ?? [];
     if (currentAppliedJobs.includes(jobId)) {
@@ -142,14 +142,14 @@ const handleApplyJob = async (jobId: string) => {
     }
 
     try {
-        await api.applyToJob(jobId); 
-        
-        const updatedUser = await api.getProfile(); 
+        await api.applyToJob(jobId); 
+        
+        const updatedUser = await api.getProfile(); 
 
         setSeekers(seekers.map(s => s.id === updatedUser.id ? updatedUser : s));
         setCurrentUser(updatedUser);
-        
-        localStorage.setItem('user', JSON.stringify(updatedUser)); 
+        
+        localStorage.setItem('user', JSON.stringify(updatedUser)); 
 
         setNotification("Job application successful!");
     } catch (error: any) {
@@ -163,11 +163,11 @@ const handleApplyJob = async (jobId: string) => {
             const userProfile = await api.authenticateUser(email, password, role);
              if (userProfile && userProfile.user) {
                 // FIX: Ensure user object uses 'id' for consistency before setting state/localStorage
-                const userWithId = mapToFrontendIds([userProfile.user])[0];
+                const userWithId = mapToFrontendIds([userProfile.user])[0];
 
                 setCurrentUser(userWithId as User);
                 setCurrentUserRole(userProfile.role);
-                localStorage.setItem('token', (userProfile as any).token); 
+                localStorage.setItem('token', (userProfile as any).token); 
                 localStorage.setItem('user', JSON.stringify(userWithId)); // Save user with 'id'
 
             } else {
@@ -179,7 +179,7 @@ const handleApplyJob = async (jobId: string) => {
             setIsLoading(false);
         }
     };
-    
+    
     const handleRegister = async (name: string, email: string, password: string, role: UserRole) => {
         setAuthError(null);
         setIsLoading(true);
@@ -188,14 +188,14 @@ const handleApplyJob = async (jobId: string) => {
             const userProfile = await api.registerUser(name, email, password, role);
              if (userProfile && userProfile.user) {
                 // FIX: Ensure user object uses 'id' for consistency before setting state/localStorage
-                const userWithId = mapToFrontendIds([userProfile.user])[0];
-                
+                const userWithId = mapToFrontendIds([userProfile.user])[0];
+                
                 setCurrentUser(userWithId as User);
                 setCurrentUserRole(userProfile.role);
                 localStorage.setItem('token', (userProfile as any).token);
                 localStorage.setItem('user', JSON.stringify(userWithId)); // Save user with 'id'
 
-                setIsRegistering(false); 
+                setIsRegistering(false); 
                 setNotification("Registration successful and logged in!");
             } else {
                 throw new Error("Registration failed.");
@@ -215,23 +215,23 @@ const handleApplyJob = async (jobId: string) => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
     };
-    
+    
     const handleSaveSeekerProfile = async (updatedSeeker: JobSeeker) => {
         try {
             const savedSeeker = await api.saveSeeker(updatedSeeker);
-            
+            
             // FIX: Map _id to id
-            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
+            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
 
             setSeekers(seekers.map(s => s.id === seekerWithId.id ? seekerWithId : s));
             setCurrentUser(seekerWithId as JobSeeker);
-            
+            
             // CRITICAL FIX: Manually save the new token/user object for persistence.
             if ((savedSeeker as any).token) {
                  localStorage.setItem('token', (savedSeeker as any).token);
             }
-            localStorage.setItem('user', JSON.stringify(seekerWithId)); 
-            
+            localStorage.setItem('user', JSON.stringify(seekerWithId)); 
+            
             setNotification("Profile updated successfully!");
 
         } catch (error: any) {
@@ -244,7 +244,7 @@ const handleApplyJob = async (jobId: string) => {
             const savedCompany = await api.saveCompany(updatedCompany);
 
             // FIX: Map _id to id
-            const companyWithId = mapToFrontendIds([savedCompany])[0];
+            const companyWithId = mapToFrontendIds([savedCompany])[0];
 
             setCompanies(companies.map(c => c.id === companyWithId.id ? companyWithId : c));
             setCurrentUser(companyWithId as Company);
@@ -263,39 +263,39 @@ const handleApplyJob = async (jobId: string) => {
     }
 
     const handleAddReview = async (companyId: string, review: Omit<Review, 'id' | 'date' | 'authorId'>) => {
-      // NOTE: You are currently missing the api.addReview implementation in apiService.ts 
+      // NOTE: You are currently missing the api.addReview implementation in apiService.ts 
       // which is needed for this logic block to fully work.
       // Assuming api.addReview is implemented:
-      
+      
       // const updatedCompany = await api.addReview(companyId, review);
       // setCompanies(companies.map(c => c.id === companyId ? updatedCompany : c));
-      
+      
       // Automatically create a blog post from the review
       // ... (existing auto-post logic)
       // CRITICAL FIX: Uncomment the API call to save the post
-      // const savedPost = await api.addBlogPost(newPostData); 
+      // const savedPost = await api.addBlogPost(newPostData); 
       // setBlogPosts(prev => [savedPost, ...prev]);
-      
+      
       setNotification(`Your review for ${companies.find(c => c.id === companyId)?.name} is now live on the blog!`);
     }
-    
+    
     const handleCompanySaveJob = async (jobData: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
         try {
             const newJob = await api.saveJob(jobData);
             // FIX: Map _id to id
-            const jobWithId = mapToFrontendIds([newJob])[0];
+            const jobWithId = mapToFrontendIds([newJob])[0];
             setJobs(prev => [jobWithId as Job, ...prev]);
             setNotification("New job posted successfully!");
         } catch (error: any) {
             setNotification(`Job post failed: ${error.message}`);
         }
     }
-    
+    
     // FIX: Implemented Admin Delete Logic
     const handleAdminDelete = async (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => {
         try {
             await api.deleteEntity(type, id);
-            
+            
             // Update local state based on the type deleted
             if (type === 'job') {
                 setJobs(prev => prev.filter(j => j.id !== id));
@@ -320,8 +320,8 @@ const handleApplyJob = async (jobId: string) => {
         try {
             const savedSeeker = await api.saveSeeker(seeker);
             // FIX: Map _id to id
-            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
-            
+            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
+            
             if (seekers.some(s => s.id === seekerWithId.id)) {
                 setSeekers(seekers.map(s => s.id === seekerWithId.id ? seekerWithId as JobSeeker : s));
             } else {
@@ -336,9 +336,9 @@ const handleApplyJob = async (jobId: string) => {
     const handleAdminSaveCompany = async (company: Company) => {
         try {
             const savedCompany = await api.saveCompany(company);
-            // FIX: Map _id to id
-            const companyWithId = mapToFrontendIds([savedCompany])[0];
-            
+            // FIX: Map _id to id
+            const companyWithId = mapToFrontendIds([savedCompany])[0];
+            
             if (companies.some(c => c.id === companyWithId.id)) {
                 setCompanies(companies.map(c => c.id === companyWithId.id ? companyWithId as Company : c));
             } else {
@@ -349,12 +349,12 @@ const handleApplyJob = async (jobId: string) => {
             setNotification(`Company update failed: ${error.message}`);
         }
     };
-    
+    
     const handleAdminSaveJob = async (job: Job | Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
         try {
             const savedJob = await api.saveJob(job);
-            // FIX: Map _id to id
-            const jobWithId = mapToFrontendIds([savedJob])[0];
+            // FIX: Map _id to id
+            const jobWithId = mapToFrontendIds([savedJob])[0];
 
             if (jobs.some(j => j.id === jobWithId.id)) {
                 setJobs(jobs.map(j => j.id === jobWithId.id ? jobWithId as Job : j));
@@ -366,7 +366,7 @@ const handleApplyJob = async (jobId: string) => {
             setNotification(`Job save failed: ${error.message}`);
         }
     };
-    
+    
     // FIX: Corrected handleAddBlogPost to include the 'content' field in the payload
     const handleAddBlogPost = async (content: string) => {
         if (!currentUser || !currentUserRole) return;
@@ -394,7 +394,7 @@ const handleApplyJob = async (jobId: string) => {
         try {
             const savedPost = await api.addBlogPost(newPostData);
             // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([savedPost])[0];
+            const postWithId = mapToFrontendIds([savedPost])[0];
             setBlogPosts(prev => [postWithId as BlogPost, ...prev]);
             setNotification("Blog post created successfully!");
         } catch (error: any) {
@@ -406,8 +406,8 @@ const handleApplyJob = async (jobId: string) => {
     const handleUpdateBlogPost = async (postId: string, content: string) => {
         try {
             const updatedPost = await api.updateBlogPost(postId, content);
-            // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([updatedPost])[0];
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
             setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Blog post updated successfully!");
         } catch (error: any) {
@@ -419,7 +419,7 @@ const handleApplyJob = async (jobId: string) => {
     const handleDeleteBlogPost = async (postId: string) => {
         try {
             // Use api.deleteBlogPost which wraps api.deleteEntity('blogPost', postId)
-            if (await api.deleteBlogPost(postId)) { 
+            if (await api.deleteBlogPost(postId)) { 
                 setBlogPosts(posts => posts.filter(p => p.id !== postId));
                 setNotification("Blog post deleted successfully!");
             }
@@ -427,15 +427,15 @@ const handleApplyJob = async (jobId: string) => {
             setNotification(`Failed to delete blog post: ${error.message}`);
         }
     };
-    
+    
     // FIX: Completed handlePostReaction implementation
     const handlePostReaction = async (postId: string, reactionType: ReactionType) => {
         if (!currentUser) return;
         try {
             // Using the correct api.addOrUpdateReaction signature
             const updatedPost = await api.addOrUpdateReaction(postId, reactionType);
-            // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([updatedPost])[0];
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
             setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
         } catch (error: any) {
             setNotification(`Failed to react to post: ${error.message}`);
@@ -445,11 +445,11 @@ const handleApplyJob = async (jobId: string) => {
     // FIX: Completed handleAddComment implementation
     const handleAddComment = async (postId: string, content: string) => {
         if (!currentUser || !currentUserRole) return;
-        
+        
         try {
             const updatedPost = await api.addComment(postId, content);
-            // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([updatedPost])[0];
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
             setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment added successfully!");
         } catch (error: any) {
@@ -461,8 +461,8 @@ const handleApplyJob = async (jobId: string) => {
     const handleUpdateComment = async (postId: string, commentId: string, content: string) => {
         try {
             const updatedPost = await api.updateComment(postId, commentId, content);
-            // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([updatedPost])[0];
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
             setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment updated successfully!");
         } catch (error: any) {
@@ -474,8 +474,8 @@ const handleApplyJob = async (jobId: string) => {
     const handleDeleteComment = async (postId: string, commentId: string) => {
         try {
             const updatedPost = await api.deleteComment(postId, commentId);
-            // FIX: Map _id to id
-            const postWithId = mapToFrontendIds([updatedPost])[0];
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
             setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment deleted successfully!");
         } catch (error: any) {
@@ -492,25 +492,25 @@ const handleApplyJob = async (jobId: string) => {
     if (!currentUser || !currentUserRole) {
         if (isRegistering) {
             return (
-                <RegisterPage 
-                    onRegister={handleRegister} 
+                <RegisterPage 
+                    onRegister={handleRegister} 
                     onSwitchToLogin={() => {
                         setIsRegistering(false);
                         setAuthError(null);
-                    }} 
-                    error={authError} 
+                    }} 
+                    error={authError} 
                 />
             );
         }
-        
+        
         return (
-            <LoginPage 
-                onLogin={handleLogin} 
-                error={authError} 
+            <LoginPage 
+                onLogin={handleLogin} 
+                error={authError} 
                 onSwitchToRegister={() => {
                     setIsRegistering(true);
                     setAuthError(null);
-                }} 
+                }} 
             />
         );
     }
@@ -519,16 +519,16 @@ const handleApplyJob = async (jobId: string) => {
    const renderDashboard = () => {
         switch (currentUserRole) {
             case 'seeker':
-                return <SeekerDashboard 
+                return <SeekerDashboard 
                     seeker={currentUser as JobSeeker}
                     jobs={jobs}
                     companies={companies}
                     onAddReview={handleAddReview}
                     onSaveProfile={handleSaveSeekerProfile}
-                    onApplyJob={handleApplyJob} 
+                    onApplyJob={handleApplyJob} 
                 />;
             case 'company':
-                return <CompanyDashboard 
+                return <CompanyDashboard 
                     company={currentUser as Company}
                     jobs={jobs}
                     seekers={seekers}
@@ -537,7 +537,7 @@ const handleApplyJob = async (jobId: string) => {
                     onDelete={handleAdminDelete} // Passing the delete handler
                 />;
             case 'admin':
-                return <AdminDashboard 
+                return <AdminDashboard 
                     jobs={jobs}
                     companies={companies}
                     seekers={seekers}
@@ -551,10 +551,10 @@ const handleApplyJob = async (jobId: string) => {
         }
     }
     // --- End Dashboard Render Logic ---
-    
+    
     let currentUserName = 'Admin';
     let currentUserPhoto = `https://i.pravatar.cc/150?u=admin`;
-    
+    
     // START FIX BLOCK: Make photo calculation robust in App.tsx
     if (currentUserRole === 'seeker') {
         currentUserName = (currentUser as JobSeeker).name;
@@ -590,7 +590,7 @@ const handleApplyJob = async (jobId: string) => {
                     </div>
                 </nav>
             </header>
-            
+            
              <div className="sm:hidden p-2 bg-white/80 backdrop-blur-sm shadow-md">
                  <div className="flex justify-around">
                      <NavButton isActive={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} icon={<BriefcaseIcon className="h-5 w-5"/>}><span className="sr-only">Dashboard</span></NavButton>
@@ -599,7 +599,7 @@ const handleApplyJob = async (jobId: string) => {
              </div>
 
             {activeView === 'dashboard' ? renderDashboard() : (
-                <BlogPage 
+                <BlogPage 
                     posts={blogPosts}
                     onAddPost={handleAddBlogPost}
                     onUpdatePost={handleUpdateBlogPost}

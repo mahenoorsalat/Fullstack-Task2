@@ -1,5 +1,3 @@
-// mahenoorsalat/fullstack-task2/.../components/RegisterPage.tsx
-
 import React, { useState } from 'react';
 
 type UserRole = 'seeker' | 'company' | 'admin';
@@ -88,7 +86,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
 
           <div>
              <label className="block text-sm font-medium text-gray-700">Register as:</label>
-              <div className="mt-2 flex justify-center space-x-8">
+              <div className="mt-2 flex justify-center space-x-4">
                 <label className="inline-flex items-center">
                   <input type="radio" className="form-radio text-primary" name="userType" value="seeker" checked={userType === 'seeker'} onChange={() => setUserType('seeker')} />
                   <span className="ml-2">Job Seeker</span>
@@ -96,6 +94,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onSwitchToLogin
                  <label className="inline-flex items-center">
                   <input type="radio" className="form-radio text-primary" name="userType" value="company" checked={userType === 'company'} onChange={() => setUserType('company')} />
                   <span className="ml-2">Company</span>
+                </label>
+                {/* FIX: Added Admin radio button for consistency with UserRole type */}
+                <label className="inline-flex items-center">
+                  <input type="radio" className="form-radio text-primary" name="userType" value="admin" checked={userType === 'admin'} onChange={() => setUserType('admin')} />
+                  <span className="ml-2">Admin</span>
                 </label>
               </div>
           </div>
