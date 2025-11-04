@@ -110,8 +110,11 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
     setMinSalary(0);
   }
 
+  // FIX 1: Use the populated 'employerId' field which contains the company object.
   const selectedJob = jobs.find(j => j.id === selectedJobId);
-  const selectedJobCompany = selectedJob ? companies.find(c => c.id === selectedJob.companyId) : null;
+  const selectedJobCompany = selectedJob && selectedJob.employerId && 'id' in selectedJob.employerId
+      ? selectedJob.employerId as Company 
+      : null;
 
   return (
     <main className="container mx-auto p-4 md:p-8">
@@ -190,14 +193,16 @@ const SeekerDashboard: React.FC<SeekerDashboardProps> = ({
           {jobs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {jobs // Use the jobs prop directly, as it's already filtered
-                    .filter(job => companies.find(c => c.id === job.companyId))
+                    // FIX 2a: Filter only jobs where employerId (company) is populated
+                    // .filter(job => job.employerId && 'id' in job.employerId)
                     .map(job => {
-                      const company = companies.find(c => c.id === job.companyId);
+                      // FIX 2b: Directly use the populated employerId as the Company object
+                      const company = job.employerId as Company;
                       return (
                           <JobCard 
                               key={job._id || job.id}
                               job={job}
-                              company={company!}
+                              company={company} // Pass the correct company object
                               onApply={handleApply}
                               onViewDetails={handleViewDetails}
                               isApplied={appliedJobs.includes(job.id)}
