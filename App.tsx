@@ -13,6 +13,10 @@ type User = JobSeeker | Company | Admin;
 type UserRole = 'seeker' | 'company' | 'admin';
 type ActiveView = 'dashboard' | 'blog';
 
+// Utility function to convert MongoDB _id to frontend id
+const mapToFrontendIds = (data: any[]) => data.map(item => ({ ...item, id: item._id || item.id }));
+
+
 const Notification = ({ message, onClose }: { message: string; onClose: () => void }) => {
 // ... (Notification component logic remains unchanged)
     useEffect(() => {
@@ -82,7 +86,7 @@ const App: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
-            let seekersData = [], companiesData = [], jobsData = [], postsData = [];
+            let seekersData = [], companiesData = [], jobsData = [], postsData = [];
             try {
                 [seekersData, companiesData, jobsData, postsData] = await Promise.all([
                     api.getSeekers(),
@@ -90,18 +94,21 @@ const App: React.FC = () => {
                     api.getJobs(),
                     api.getBlogPosts(),
                 ]);
-                
-                // Admin specific fetch
-                if (currentUserRole === 'admin') {
-                    const adminUsers = await api.getAdminUsers();
-                    seekersData = adminUsers.filter(u => u.role === 'seeker') as JobSeeker[];
-                    companiesData = adminUsers.filter(u => u.role === 'company') as Company[];
-                }
+                
+                // Admin specific fetch
+                if (currentUserRole === 'admin') {
+                    const adminUsers = await api.getAdminUsers();
+                    // FIX: Map _id to id for all admin-fetched users
+                    const usersWithId = mapToFrontendIds(adminUsers);
+                    seekersData = usersWithId.filter(u => u.role === 'seeker') as JobSeeker[];
+                    companiesData = usersWithId.filter(u => u.role === 'company') as Company[];
+                }
 
-                setSeekers(seekersData);
-                setCompanies(companiesData);
-                setJobs(jobsData);
-                setBlogPosts(postsData);
+                // CRITICAL FIX: Ensure all data is mapped to use 'id'
+                setSeekers(mapToFrontendIds(seekersData));
+                setCompanies(mapToFrontendIds(companiesData));
+                setJobs(mapToFrontendIds(jobsData));
+                setBlogPosts(mapToFrontendIds(postsData));
             } catch (error) {
                 console.error("Failed to load dashboard data:", error);
                 // Optionally handle error state
@@ -155,12 +162,13 @@ const handleApplyJob = async (jobId: string) => {
         try {
             const userProfile = await api.authenticateUser(email, password, role);
              if (userProfile && userProfile.user) {
-                setCurrentUser(userProfile.user);
+                // FIX: Ensure user object uses 'id' for consistency before setting state/localStorage
+                const userWithId = mapToFrontendIds([userProfile.user])[0];
+
+                setCurrentUser(userWithId as User);
                 setCurrentUserRole(userProfile.role);
-                // CRITICAL FIX: Persist login data for the token and the full user profile
-                // The returned object from authenticateUser might not have 'token' on userProfile.user itself.
                 localStorage.setItem('token', (userProfile as any).token); 
-                localStorage.setItem('user', JSON.stringify(userProfile.user));
+                localStorage.setItem('user', JSON.stringify(userWithId)); // Save user with 'id'
 
             } else {
                 throw new Error("Invalid credentials or role.");
@@ -179,12 +187,13 @@ const handleApplyJob = async (jobId: string) => {
             // NOTE: Registering automatically logs the user in if successful
             const userProfile = await api.registerUser(name, email, password, role);
              if (userProfile && userProfile.user) {
-                setCurrentUser(userProfile.user);
+                // FIX: Ensure user object uses 'id' for consistency before setting state/localStorage
+                const userWithId = mapToFrontendIds([userProfile.user])[0];
+                
+                setCurrentUser(userWithId as User);
                 setCurrentUserRole(userProfile.role);
-                // CRITICAL FIX: Persist login data for the token and the full user profile
-                // The returned object from registerUser might not have 'token' on userProfile.user itself.
                 localStorage.setItem('token', (userProfile as any).token);
-                localStorage.setItem('user', JSON.stringify(userProfile.user));
+                localStorage.setItem('user', JSON.stringify(userWithId)); // Save user with 'id'
 
                 setIsRegistering(false); 
                 setNotification("Registration successful and logged in!");
@@ -211,14 +220,17 @@ const handleApplyJob = async (jobId: string) => {
         try {
             const savedSeeker = await api.saveSeeker(updatedSeeker);
             
-            setSeekers(seekers.map(s => s.id === savedSeeker.id ? savedSeeker : s));
-            setCurrentUser(savedSeeker);
+            // FIX: Map _id to id
+            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
+
+            setSeekers(seekers.map(s => s.id === seekerWithId.id ? seekerWithId : s));
+            setCurrentUser(seekerWithId as JobSeeker);
             
             // CRITICAL FIX: Manually save the new token/user object for persistence.
             if ((savedSeeker as any).token) {
                  localStorage.setItem('token', (savedSeeker as any).token);
             }
-            localStorage.setItem('user', JSON.stringify(savedSeeker)); 
+            localStorage.setItem('user', JSON.stringify(seekerWithId)); 
             
             setNotification("Profile updated successfully!");
 
@@ -230,14 +242,18 @@ const handleApplyJob = async (jobId: string) => {
     const handleSaveCompanyProfile = async (updatedCompany: Company) => {
         try {
             const savedCompany = await api.saveCompany(updatedCompany);
-            setCompanies(companies.map(c => c.id === savedCompany.id ? savedCompany : c));
-            setCurrentUser(savedCompany);
+
+            // FIX: Map _id to id
+            const companyWithId = mapToFrontendIds([savedCompany])[0];
+
+            setCompanies(companies.map(c => c.id === companyWithId.id ? companyWithId : c));
+            setCurrentUser(companyWithId as Company);
 
             // CRITICAL FIX: Manually save the new token/user object for persistence.
             if ((savedCompany as any).token) {
                 localStorage.setItem('token', (savedCompany as any).token);
             }
-            localStorage.setItem('user', JSON.stringify(savedCompany));
+            localStorage.setItem('user', JSON.stringify(companyWithId));
 
             setNotification("Profile updated successfully!");
 
@@ -265,82 +281,93 @@ const handleApplyJob = async (jobId: string) => {
     
     const handleCompanySaveJob = async (jobData: Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
         try {
-            const newJob = await api.saveJob(jobData);
-            setJobs(prev => [newJob, ...prev]);
-            setNotification("New job posted successfully!");
-        } catch (error: any) {
-            setNotification(`Job post failed: ${error.message}`);
-        }
+            const newJob = await api.saveJob(jobData);
+            // FIX: Map _id to id
+            const jobWithId = mapToFrontendIds([newJob])[0];
+            setJobs(prev => [jobWithId as Job, ...prev]);
+            setNotification("New job posted successfully!");
+        } catch (error: any) {
+            setNotification(`Job post failed: ${error.message}`);
+        }
     }
-    
-    // FIX: Implemented Admin Delete Logic
-    const handleAdminDelete = async (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => {
-        try {
-            await api.deleteEntity(type, id);
-            
-            // Update local state based on the type deleted
-            if (type === 'job') {
-                setJobs(prev => prev.filter(j => j.id !== id));
-                setNotification("Job deleted successfully!");
-            } else if (type === 'seeker') {
-                setSeekers(prev => prev.filter(s => s.id !== id));
-                setNotification("Seeker account deleted successfully!");
-            } else if (type === 'company') {
-                setCompanies(prev => prev.filter(c => c.id !== id));
-                setNotification("Company account deleted successfully!");
-            } else if (type === 'blogPost') {
-                setBlogPosts(prev => prev.filter(p => p.id !== id));
-                setNotification("Blog post deleted successfully!");
-            }
-        } catch (error: any) {
-            setNotification(`Deletion failed: ${error.message}`);
-        }
-    }
+    
+    // FIX: Implemented Admin Delete Logic
+    const handleAdminDelete = async (type: 'job' | 'company' | 'seeker' | 'blogPost', id: string) => {
+        try {
+            await api.deleteEntity(type, id);
+            
+            // Update local state based on the type deleted
+            if (type === 'job') {
+                setJobs(prev => prev.filter(j => j.id !== id));
+                setNotification("Job deleted successfully!");
+            } else if (type === 'seeker') {
+                setSeekers(prev => prev.filter(s => s.id !== id));
+                setNotification("Seeker account deleted successfully!");
+            } else if (type === 'company') {
+                setCompanies(prev => prev.filter(c => c.id !== id));
+                setNotification("Company account deleted successfully!");
+            } else if (type === 'blogPost') {
+                setBlogPosts(prev => prev.filter(p => p.id !== id));
+                setNotification("Blog post deleted successfully!");
+            }
+        } catch (error: any) {
+            setNotification(`Deletion failed: ${error.message}`);
+        }
+    }
 
 
     const handleAdminSaveSeeker = async (seeker: JobSeeker) => {
-        try {
-            const savedSeeker = await api.saveSeeker(seeker);
-            if (seekers.some(s => s.id === savedSeeker.id)) {
-                setSeekers(seekers.map(s => s.id === savedSeeker.id ? savedSeeker : s));
-            } else {
-                setSeekers([...seekers, savedSeeker]);
-            }
-            setNotification("Seeker data saved!");
-        } catch (error: any) {
-             setNotification(`Seeker update failed: ${error.message}`);
-        }
+        try {
+            const savedSeeker = await api.saveSeeker(seeker);
+            // FIX: Map _id to id
+            const seekerWithId = mapToFrontendIds([savedSeeker])[0];
+            
+            if (seekers.some(s => s.id === seekerWithId.id)) {
+                setSeekers(seekers.map(s => s.id === seekerWithId.id ? seekerWithId as JobSeeker : s));
+            } else {
+                setSeekers([...seekers, seekerWithId as JobSeeker]);
+            }
+            setNotification("Seeker data saved!");
+        } catch (error: any) {
+             setNotification(`Seeker update failed: ${error.message}`);
+        }
     };
 
     const handleAdminSaveCompany = async (company: Company) => {
-        try {
-            const savedCompany = await api.saveCompany(company);
-            if (companies.some(c => c.id === savedCompany.id)) {
-                setCompanies(companies.map(c => c.id === savedCompany.id ? savedCompany : c));
-            } else {
-                setCompanies([...companies, savedCompany]);
-            }
-            setNotification("Company data saved!");
-        } catch (error: any) {
-            setNotification(`Company update failed: ${error.message}`);
-        }
+        try {
+            const savedCompany = await api.saveCompany(company);
+            // FIX: Map _id to id
+            const companyWithId = mapToFrontendIds([savedCompany])[0];
+            
+            if (companies.some(c => c.id === companyWithId.id)) {
+                setCompanies(companies.map(c => c.id === companyWithId.id ? companyWithId as Company : c));
+            } else {
+                setCompanies([...companies, companyWithId as Company]);
+            }
+            setNotification("Company data saved!");
+        } catch (error: any) {
+            setNotification(`Company update failed: ${error.message}`);
+        }
     };
     
     const handleAdminSaveJob = async (job: Job | Omit<Job, 'id' | 'applicants' | 'shortlisted' | 'rejected'>) => {
-        try {
-            const savedJob = await api.saveJob(job);
-            if (jobs.some(j => j.id === savedJob.id)) {
-                setJobs(jobs.map(j => j.id === savedJob.id ? savedJob : j));
-            } else {
-                setJobs([savedJob, ...jobs]);
-            }
-            setNotification("Job data saved!");
-        } catch (error: any) {
-            setNotification(`Job save failed: ${error.message}`);
-        }
+        try {
+            const savedJob = await api.saveJob(job);
+            // FIX: Map _id to id
+            const jobWithId = mapToFrontendIds([savedJob])[0];
+
+            if (jobs.some(j => j.id === jobWithId.id)) {
+                setJobs(jobs.map(j => j.id === jobWithId.id ? jobWithId as Job : j));
+            } else {
+                setJobs([jobWithId as Job, ...jobs]);
+            }
+            setNotification("Job data saved!");
+        } catch (error: any) {
+            setNotification(`Job save failed: ${error.message}`);
+        }
     };
     
-    // FIX: Corrected handleAddBlogPost to include the 'content' field in the payload
+    // FIX: Corrected handleAddBlogPost to include the 'content' field in the payload
     const handleAddBlogPost = async (content: string) => {
         if (!currentUser || !currentUserRole) return;
 
@@ -361,30 +388,34 @@ const handleApplyJob = async (jobId: string) => {
             authorName,
             authorRole: currentUserRole,
             authorPhotoUrl,
-            content, // CRITICAL FIX: Add the content field here
+            content, // CRITICAL FIX: Add the content field here
         };
 
         try {
             const savedPost = await api.addBlogPost(newPostData);
-            setBlogPosts(prev => [savedPost, ...prev]);
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([savedPost])[0];
+            setBlogPosts(prev => [postWithId as BlogPost, ...prev]);
             setNotification("Blog post created successfully!");
         } catch (error: any) {
             setNotification(`Failed to create blog post: ${error.message}`);
         }
     };
 
-    // FIX: Completed handleUpdateBlogPost implementation
+    // FIX: Completed handleUpdateBlogPost implementation
     const handleUpdateBlogPost = async (postId: string, content: string) => {
         try {
             const updatedPost = await api.updateBlogPost(postId, content);
-            setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
+            setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Blog post updated successfully!");
         } catch (error: any) {
             setNotification(`Failed to update blog post: ${error.message}`);
         }
     };
 
-    // FIX: Corrected handleDeleteBlogPost to use api.deleteBlogPost
+    // FIX: Corrected handleDeleteBlogPost to use api.deleteBlogPost
     const handleDeleteBlogPost = async (postId: string) => {
         try {
             // Use api.deleteBlogPost which wraps api.deleteEntity('blogPost', postId)
@@ -397,47 +428,55 @@ const handleApplyJob = async (jobId: string) => {
         }
     };
     
-    // FIX: Completed handlePostReaction implementation
+    // FIX: Completed handlePostReaction implementation
     const handlePostReaction = async (postId: string, reactionType: ReactionType) => {
         if (!currentUser) return;
         try {
             // Using the correct api.addOrUpdateReaction signature
             const updatedPost = await api.addOrUpdateReaction(postId, reactionType);
-            setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
+            setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
         } catch (error: any) {
             setNotification(`Failed to react to post: ${error.message}`);
         }
     };
 
-    // FIX: Completed handleAddComment implementation
+    // FIX: Completed handleAddComment implementation
     const handleAddComment = async (postId: string, content: string) => {
         if (!currentUser || !currentUserRole) return;
         
         try {
             const updatedPost = await api.addComment(postId, content);
-            setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
+            setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment added successfully!");
         } catch (error: any) {
             setNotification(`Failed to add comment: ${error.message}`);
         }
     };
 
-    // FIX: Completed handleUpdateComment implementation
+    // FIX: Completed handleUpdateComment implementation
     const handleUpdateComment = async (postId: string, commentId: string, content: string) => {
         try {
             const updatedPost = await api.updateComment(postId, commentId, content);
-            setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
+            setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment updated successfully!");
         } catch (error: any) {
             setNotification(`Failed to update comment: ${error.message}`);
         }
     };
 
-    // FIX: Completed handleDeleteComment implementation
+    // FIX: Completed handleDeleteComment implementation
     const handleDeleteComment = async (postId: string, commentId: string) => {
         try {
             const updatedPost = await api.deleteComment(postId, commentId);
-            setBlogPosts(posts => posts.map(p => p.id === postId ? updatedPost : p));
+            // FIX: Map _id to id
+            const postWithId = mapToFrontendIds([updatedPost])[0];
+            setBlogPosts(posts => posts.map(p => p.id === postId ? postWithId as BlogPost : p));
             setNotification("Comment deleted successfully!");
         } catch (error: any) {
             setNotification(`Failed to delete comment: ${error.message}`);
@@ -495,7 +534,7 @@ const handleApplyJob = async (jobId: string) => {
                     seekers={seekers}
                     onSaveProfile={handleSaveCompanyProfile}
                     onSaveJob={handleAdminSaveJob} // Using the generic save job handler
-                    onDelete={handleAdminDelete} // Passing the delete handler
+                    onDelete={handleAdminDelete} // Passing the delete handler
                 />;
             case 'admin':
                 return <AdminDashboard 

@@ -4,596 +4,592 @@ import Modal from './Modal'; // Correct path for Modal (same directory)
 import { api } from '../services/apiService'; // Correct path for apiService (one level up)
 
 import {
-  PencilIcon,
-  TrashIcon,
-  HandThumbUpIcon,
-  HeartIcon,
-  HandThumbDownIcon,
-  HandThumbUpIconSolid,
-  HeartIconSolid,
-  HandThumbDownIconSolid,
+  PencilIcon,
+  TrashIcon,
+  HandThumbUpIcon,
+  HeartIcon,
+  HandThumbDownIcon,
+  HandThumbUpIconSolid,
+  HeartIconSolid,
+  HandThumbDownIconSolid,
 } from './icons'; // Correct path for icons (same directory)
 
-// NOTE: CommentItemProps is no longer needed since the logic is inside PostCard
-
 interface BlogPageProps {
-  posts: BlogPost[];
-  onAddPost: (content: string) => Promise<void>;
-  onUpdatePost: (postId: string, content: string) => Promise<void>;
-  onDeletePost: (postId: string) => Promise<void>;
-  onPostReaction: (postId: string, reactionType: ReactionType) => void;
-  onAddComment: (postId: string, content: string) => Promise<void>;
-  // Renamed prop to handle update/delete logic outside of PostCard to keep state clean
-  onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
-  onDeleteComment: (postId: string, commentId: string) => Promise<void>;
-  currentUserId: string;
-  currentUserRole: 'seeker' | 'company' | 'admin';
-  currentUserName: string;
-  currentUserPhoto: string;
+  posts: BlogPost[];
+  onAddPost: (content: string) => Promise<void>;
+  onUpdatePost: (postId: string, content: string) => Promise<void>;
+  onDeletePost: (postId: string) => Promise<void>;
+  onPostReaction: (postId: string, reactionType: ReactionType) => void;
+  onAddComment: (postId: string, content: string) => Promise<void>;
+  onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
+  onDeleteComment: (postId: string, commentId: string) => Promise<void>;
+  currentUserId: string;
+  currentUserRole: 'seeker' | 'company' | 'admin';
+  currentUserName: string;
+  currentUserPhoto: string;
 }
 
 interface PostCardProps {
-  post: BlogPost;
-  currentUserId: string;
-  currentUserRole: 'seeker' | 'company' | 'admin';
-  currentPosterPhoto: string;
-  currentPosterName: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  onReaction: (postId: string, reactionType: ReactionType) => void;
-  onAddComment: (postId: string, content: string) => Promise<void>;
-  onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
-  // Adjusted prop name to better reflect the action
-  onDeleteCommentClick: (comment: Comment) => void; 
-  isNew?: boolean;
+  post: BlogPost;
+  currentUserId: string;
+  currentUserRole: 'seeker' | 'company' | 'admin';
+  currentPosterPhoto: string;
+  currentPosterName: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReaction: (postId: string, reactionType: ReactionType) => void;
+  onAddComment: (postId: string, content: string) => Promise<void>;
+  onUpdateComment: (postId: string, commentId: string, content: string) => Promise<void>;
+  onDeleteCommentClick: (comment: Comment) => void; 
+  isNew?: boolean;
 }
 
 const PostCard: React.FC<PostCardProps> = ({
-  post,
-  currentUserId,
-  currentUserRole,
-  currentPosterPhoto,
-  currentPosterName,
-  onEdit,
-  onDelete,
-  onReaction,
-  onAddComment,
-  onUpdateComment,
-  onDeleteCommentClick,
-  isNew,
+  post,
+  currentUserId,
+  currentUserRole,
+  currentPosterPhoto,
+  currentPosterName,
+  onEdit,
+  onDelete,
+  onReaction,
+  onAddComment,
+  onUpdateComment,
+  onDeleteCommentClick,
+  isNew,
 }) => {
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  // State to manage which comment is currently being edited
-  const [editingComment, setEditingComment] = useState<Comment | null>(null);
-  const [editedCommentContent, setEditedCommentContent] = useState('');
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  // State to manage which comment is currently being edited
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [editedCommentContent, setEditedCommentContent] = useState('');
 
-  const reactions = post.reactions ?? [];
-  const postComments = post.comments ?? [];
+  const reactions = post.reactions ?? [];
+  const postComments = post.comments ?? [];
 
-  const reactionCounts = useMemo(
-    () => ({
-      like: reactions.filter((r) => r.type === 'like').length,
-      love: reactions.filter((r) => r.type === 'love').length,
-      dislike: reactions.filter((r) => r.type === 'dislike').length,
-    }),
-    [reactions]
-  );
+  const reactionCounts = useMemo(
+    () => ({
+      like: reactions.filter((r) => r.type === 'like').length,
+      love: reactions.filter((r) => r.type === 'love').length,
+      dislike: reactions.filter((r) => r.type === 'dislike').length,
+    }),
+    [reactions]
+  );
 
-  const currentUserReaction = useMemo(
-    () => reactions.find((r) => r.userId === currentUserId)?.type,
-    [reactions, currentUserId]
-  );
+  const currentUserReaction = useMemo(
+    () => reactions.find((r) => r.userId === currentUserId)?.type,
+    [reactions, currentUserId]
+  );
 
-  const handleReactionClick = (reactionType: ReactionType) => {
-    if (!post.id) {
-      console.error('Attempted reaction on post with undefined ID.');
-      return;
-    }
-    onReaction(post.id, reactionType);
-  };
+  const handleReactionClick = (reactionType: ReactionType) => {
+    if (!post.id) {
+      console.error('Attempted reaction on post with undefined ID.');
+      return;
+    }
+    onReaction(post.id, reactionType);
+  };
 
-  const handleCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !post.id) return;
-    setIsSubmittingComment(true);
-    await onAddComment(post.id, commentText);
-    setCommentText('');
-    setIsSubmittingComment(false);
-    // FIX 1: Show comments immediately after posting a new one
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !post.id) return;
+    setIsSubmittingComment(true);
+    await onAddComment(post.id, commentText);
+    setCommentText('');
+    setIsSubmittingComment(false);
+    // Show comments immediately after posting a new one
     setShowComments(true);
-  };
+  };
 
-  // --- Handle Save/Cancel for Comment Edit ---
-  const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // FIX 3: Ensure content is valid and actually changed
-    if (!editingComment || !post.id || editedCommentContent.trim() === '' || editedCommentContent === editingComment.content) {
-      setEditingComment(null); // Cancel if content is empty or unchanged
-      setEditedCommentContent('');
-      return;
-    }
-    
-    try {
-      // Call the parent handler to perform the API update
-      await onUpdateComment(post.id, editingComment.id, editedCommentContent);
-      // Clear editing state on success
-      setEditingComment(null);
-      setEditedCommentContent('');
-    } catch (error) {
-      console.error('Failed to update comment:', error);
-      // Logging to console instead of alert
-      console.log('Failed to save comment. Please try again.'); 
-    }
-  };
-  
-  const handleCancelEdit = () => {
-    setEditingComment(null);
-    setEditedCommentContent('');
-  };
-  // --- END: Handle Save/Cancel for Comment Edit ---
+  // --- Handle Save/Cancel for Comment Edit ---
+  const handleUpdateCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Ensure content is valid and actually changed
+    if (!editingComment || !post.id || editedCommentContent.trim() === '' || editedCommentContent === editingComment.content) {
+      setEditingComment(null); // Cancel if content is empty or unchanged
+      setEditedCommentContent('');
+      return;
+    }
+    
+    try {
+      // Call the parent handler to perform the API update
+      await onUpdateComment(post.id, editingComment.id, editedCommentContent);
+      // Clear editing state on success, switching back to the preview text
+      setEditingComment(null);
+      setEditedCommentContent('');
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      console.log('Failed to save comment. Please try again.'); 
+    }
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingComment(null);
+    setEditedCommentContent('');
+  };
+  // --- END: Handle Save/Cancel for Comment Edit ---
 
-  // Determine if the current user is the post author or an admin
-  const isPostAuthor = currentUserId === post.authorId;
-  // This is the correct logic for post visibility: author OR admin
-  const canEditOrDeletePost = isPostAuthor || currentUserRole === 'admin';
+  // Determine if the current user is the post author or an admin
+  const isPostAuthor = currentUserId === post.authorId;
+  // This is the correct logic for post visibility: author OR admin
+  const canEditOrDeletePost = isPostAuthor || currentUserRole === 'admin';
 
 
-  return (
-    <div className="bg-white/80 backdrop-blur-sm p-5 rounded-xl shadow-interactive hover:shadow-interactive-lg hover:-translate-y-1 transition-transform-shadow duration-300 flex flex-col space-y-4 animate-fade-in-up">
-      <div className="relative flex space-x-4">
-        {isNew && (
-          <span className="absolute top-0 right-0 bg-accent text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-            NEW
-          </span>
-        )}
-        <img src={post.authorPhotoUrl} alt={post.authorName} className="h-12 w-12 rounded-full object-cover flex-shrink-0" />
-        <div className="flex-grow">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-baseline space-x-2">
-                <p className="font-bold text-neutral">{post.authorName}</p>
-                <p className="text-sm text-gray-500">· {new Date(post.timestamp).toLocaleString()}</p>
-              </div>
-            </div>
-            {/* Requirement 1: Post Edit/Delete controls: visible to Author OR Admin */}
-            {canEditOrDeletePost && ( 
-              <div className="flex items-center space-x-1 flex-shrink-0">
-                <button onClick={onEdit} className="text-gray-500 hover:text-primary p-1 rounded-full hover:bg-gray-100" aria-label="Edit Post">
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-                <button onClick={onDelete} className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-gray-100" aria-label="Delete Post">
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              </div>
-            )}
-          </div>
-          
-          {post.imageUrl && (
-            <img 
-              src={post.imageUrl} 
-              alt={`Image for ${post.authorName}'s post`} 
-              className="w-full h-auto max-h-96 object-cover rounded-lg my-4" 
-            />
-          )}
+  return (
+    <div className="bg-white/80 backdrop-blur-sm p-5 rounded-xl shadow-interactive hover:shadow-interactive-lg hover:-translate-y-1 transition-transform-shadow duration-300 flex flex-col space-y-4 animate-fade-in-up">
+      <div className="relative flex space-x-4">
+        {isNew && (
+          <span className="absolute top-0 right-0 bg-accent text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+            NEW
+          </span>
+        )}
+        <img src={post.authorPhotoUrl} alt={post.authorName} className="h-12 w-12 rounded-full object-cover flex-shrink-0" />
+        <div className="flex-grow">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-baseline space-x-2">
+                <p className="font-bold text-neutral">{post.authorName}</p>
+                <p className="text-sm text-gray-500">· {new Date(post.timestamp).toLocaleString()}</p>
+              </div>
+            </div>
+            {/* Requirement 1: Post Edit/Delete controls: visible to Author OR Admin */}
+            {canEditOrDeletePost && ( 
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                <button onClick={onEdit} className="text-gray-500 hover:text-primary p-1 rounded-full hover:bg-gray-100" aria-label="Edit Post">
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+                <button onClick={onDelete} className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-gray-100" aria-label="Delete Post">
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {post.imageUrl && (
+            <img 
+              src={post.imageUrl} 
+              alt={`Image for ${post.authorName}'s post`} 
+              className="w-full h-auto max-h-96 object-cover rounded-lg my-4" 
+            />
+          )}
 
-          <p className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</p>
-        </div>
-        
-      </div>
+          <p className="mt-2 text-gray-800 whitespace-pre-wrap">{post.content}</p>
+        </div>
+        
+      </div>
 
-      {/* Reactions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1 rounded-full bg-gray-100/80 p-1 w-fit">
-          <button
-            onClick={() => handleReactionClick('like')}
-            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-blue-100/60 focus:outline-none focus:ring-2 focus:ring-blue-300 ${
-              currentUserReaction === 'like' ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:text-blue-700'
-            }`}
-          >
-            {currentUserReaction === 'like' ? <HandThumbUpIconSolid className="h-5 w-5" /> : <HandThumbUpIcon className="h-5 w-5" />}
-            <span>{reactionCounts.like}</span>
-          </button>
-          <button
-            onClick={() => handleReactionClick('love')}
-            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-red-100/60 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-              currentUserReaction === 'love' ? 'bg-red-100 text-red-600 font-semibold' : 'text-gray-600 hover:text-red-600'
-            }`}
-          >
-            {currentUserReaction === 'love' ? <HeartIconSolid className="h-5 w-5" /> : <HeartIcon className="h-5 w-5" />}
-            <span>{reactionCounts.love}</span>
-          </button>
-          <button
-            onClick={() => handleReactionClick('dislike')}
-            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-slate-200/60 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
-              currentUserReaction === 'dislike' ? 'bg-slate-200 text-slate-800 font-semibold' : 'text-gray-600 hover:text-slate-800'
-            }`}
-          >
-            {currentUserReaction === 'dislike' ? <HandThumbDownIconSolid className="h-5 w-5" /> : <HandThumbDownIcon className="h-5 w-5" />}
-            <span>{reactionCounts.dislike}</span>
-          </button>
-        </div>
-        {postComments.length > 0 && (
-          <button onClick={() => setShowComments(!showComments)} className="text-sm text-gray-600 hover:underline">
-            {showComments ? 'Hide' : 'View'} {postComments.length} {postComments.length === 1 ? 'comment' : 'comments'}
-          </button>
-        )}
-      </div>
+      {/* Reactions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-1 rounded-full bg-gray-100/80 p-1 w-fit">
+          <button
+            onClick={() => handleReactionClick('like')}
+            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-blue-100/60 focus:outline-none focus:ring-2 focus:ring-blue-300 ${
+              currentUserReaction === 'like' ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:text-blue-700'
+            }`}
+          >
+            {currentUserReaction === 'like' ? <HandThumbUpIconSolid className="h-5 w-5" /> : <HandThumbUpIcon className="h-5 w-5" />}
+            <span>{reactionCounts.like}</span>
+          </button>
+          <button
+            onClick={() => handleReactionClick('love')}
+            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-red-100/60 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+              currentUserReaction === 'love' ? 'bg-red-100 text-red-600 font-semibold' : 'text-gray-600 hover:text-red-600'
+            }`}
+          >
+            {currentUserReaction === 'love' ? <HeartIconSolid className="h-5 w-5" /> : <HeartIcon className="h-5 w-5" />}
+            <span>{reactionCounts.love}</span>
+          </button>
+          <button
+            onClick={() => handleReactionClick('dislike')}
+            className={`flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-200 ease-in-out hover:bg-slate-200/60 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
+              currentUserReaction === 'dislike' ? 'bg-slate-200 text-slate-800 font-semibold' : 'text-gray-600 hover:text-slate-800'
+            }`}
+          >
+            {currentUserReaction === 'dislike' ? <HandThumbDownIconSolid className="h-5 w-5" /> : <HandThumbDownIcon className="h-5 w-5" />}
+            <span>{reactionCounts.dislike}</span>
+          </button>
+        </div>
+        {postComments.length > 0 && (
+          <button onClick={() => setShowComments(!showComments)} className="text-sm text-gray-600 hover:underline">
+            {showComments ? 'Hide' : 'View'} {postComments.length} {postComments.length === 1 ? 'comment' : 'comments'}
+          </button>
+        )}
+      </div>
 
-      {/* Comments Section */}
-      {(showComments || postComments.length === 0) && (
-        <div className="pt-4 border-t border-gray-200/80 space-y-4">
-          {postComments.map((comment, index) => (
-            <div key={comment.id ?? `${post.id}-comment-${index}`} className="flex space-x-3">
-              <img src={comment.authorPhotoUrl} alt={comment.authorName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
-              <div className="flex-grow bg-gray-100/80 rounded-lg p-3">
-                {/* Requirement 3: Comment Edit UI/UX - Show Edit Input if editing, else show plain text */}
-                {editingComment?.id === comment.id ? (
-                  <form onSubmit={handleUpdateCommentSubmit}>
-                    <textarea
-                      value={editedCommentContent}
-                      onChange={(e) => setEditedCommentContent(e.target.value)}
-                      className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
-                      rows={2}
-                      autoFocus
-                    />
-                    <div className="flex justify-end space-x-2 mt-2">
-                      {/* Cancel button calls local handler to reset state */}
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      {/* Save button calls local handler which triggers API prop */}
-                      <button
-                        type="submit"
-                        className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-3 rounded-md transition-colors"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-baseline space-x-2">
-                        <p className="font-semibold text-sm text-neutral">{comment.authorName}</p>
-                        <p className="text-xs text-gray-500">· {new Date(comment.timestamp).toLocaleString()}</p>
-                      </div>
-                    {/* Requirement 2: Comment Action Visibility - Show Edit/Delete only if author or admin */}
-                    {(currentUserRole === 'admin' || comment.authorId === currentUserId) && ( 
-    <div className="flex items-center space-x-1">
-        <button
-            onClick={() => {
-                setEditingComment(comment);
-                setEditedCommentContent(comment.content);
-            }}
-            className="text-gray-400 hover:text-primary p-1 rounded-full text-xs"
-            aria-label="Edit Comment"
-        >
-            <PencilIcon className="h-4 w-4" />
-        </button>
-        <button
-            // FIX: Added explicit check for comment.id before triggering delete modal for robustness
-            onClick={() => {
-                if (comment.id) {
-                    onDeleteCommentClick(comment); // Triggers parent modal
-                } else {
-                    console.error("Cannot delete comment: ID is missing.");
-                }
-            }} 
-            className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
-            aria-label="Delete Comment"
-        >
-            <TrashIcon className="h-4 w-4" />
-        </button>
-    </div>
-)}
-                    </div>
-                    <p className="text-sm text-gray-800 mt-1">{comment.content}</p>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* Comments Section */}
+      {(showComments || postComments.length === 0) && (
+        <div className="pt-4 border-t border-gray-200/80 space-y-4">
+          {postComments.map((comment, index) => (
+            <div key={comment.id ?? `${post.id}-comment-${index}`} className="flex space-x-3">
+              <img src={comment.authorPhotoUrl} alt={comment.authorName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
+              <div className="flex-grow bg-gray-100/80 rounded-lg p-3">
+                {/* Conditional rendering for Edit Mode (Input) or View Mode (Preview) */}
+                {editingComment?.id === comment.id ? (
+                  <form onSubmit={handleUpdateCommentSubmit}>
+                    <textarea
+                      value={editedCommentContent}
+                      onChange={(e) => setEditedCommentContent(e.target.value)}
+                      className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
+                      rows={2}
+                      autoFocus
+                    />
+                    <div className="flex justify-end space-x-2 mt-2">
+                      {/* Cancel button calls local handler to reset state */}
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="text-sm bg-gray-200 hover:bg-gray-300 text-black font-bold py-1 px-3 rounded-md transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      {/* Save button calls local handler which triggers API prop */}
+                      <button
+                        type="submit"
+                        className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-3 rounded-md transition-colors"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-baseline space-x-2">
+                        <p className="font-semibold text-sm text-neutral">{comment.authorName}</p>
+                        <p className="text-xs text-gray-500">· {new Date(comment.timestamp).toLocaleString()}</p>
+                      </div>
+                    {/* Comment Action Panel: visible to author or admin */}
+                    {(currentUserRole === 'admin' || comment.authorId === currentUserId) && ( 
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => {
+                              // Action click: sets state to edit mode
+                              setEditingComment(comment);
+                              setEditedCommentContent(comment.content);
+                          }}
+                          className="text-gray-400 hover:text-primary p-1 rounded-full text-xs"
+                          aria-label="Edit Comment"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                              if (comment.id) {
+                                  onDeleteCommentClick(comment); // Triggers parent modal
+                              } else {
+                                  console.error("Cannot delete comment: ID is missing.");
+                              }
+                          }} 
+                          className="text-gray-400 hover:text-red-600 p-1 rounded-full text-xs"
+                          aria-label="Delete Comment"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    </div>
+                    <p className="text-sm text-gray-800 mt-1">{comment.content}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
 
-          {/* Add Comment Form */}
-          <form onSubmit={handleCommentSubmit} className="flex space-x-3 items-start pt-2">
-            <img src={currentPosterPhoto} alt={currentPosterName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
-            <div className="flex-grow">
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
-                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
-                rows={1}
-                disabled={isSubmittingComment}
-              />
-              {commentText && (
-                <div className="text-right mt-2">
-                  <button
-                    type="submit"
-                    disabled={isSubmittingComment}
-                    className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-4 rounded-md transition-colors duration-300 disabled:bg-gray-400"
-                  >
-                    {isSubmittingComment ? 'Posting...' : 'Post'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
-  );
+          {/* Add Comment Form */}
+          <form onSubmit={handleCommentSubmit} className="flex space-x-3 items-start pt-2">
+            <img src={currentPosterPhoto} alt={currentPosterName} className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
+            <div className="flex-grow">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Write a comment..."
+                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
+                rows={1}
+                disabled={isSubmittingComment}
+              />
+              {commentText && (
+                <div className="text-right mt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingComment}
+                    className="text-sm bg-primary hover:bg-primary-focus text-white font-bold py-1 px-4 rounded-md transition-colors duration-300 disabled:bg-gray-400"
+                  >
+                    {isSubmittingComment ? 'Posting...' : 'Post'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const BlogPage: React.FC<BlogPageProps> = ({
-  posts,
-  onAddPost,
-  onUpdatePost,
-  onDeletePost,
-  onPostReaction,
-  onAddComment,
-  onUpdateComment,
-  onDeleteComment,
-  currentUserId,
-  currentUserRole,
-  currentUserName,
-  currentUserPhoto,
+  posts,
+  onAddPost,
+  onUpdatePost,
+  onDeletePost,
+  onPostReaction,
+  onAddComment,
+  onUpdateComment,
+  onDeleteComment,
+  currentUserId,
+  currentUserRole,
+  currentUserName,
+  currentUserPhoto,
 }) => {
-  const [content, setContent] = useState('');
-  const [isPosting, setIsPosting] = useState(false);
-  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
-  const [editedContent, setEditedContent] = useState('');
-  const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
-  const [deletingCommentInfo, setDeletingCommentInfo] = useState<{ postId: string; comment: Comment } | null>(null);
+  const [content, setContent] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
+  const [deletingCommentInfo, setDeletingCommentInfo] = useState<{ postId: string; comment: Comment } | null>(null);
 
-  // 1. State for locally fetched profile data
-  const [localProfile, setLocalProfile] = useState<Company | JobSeeker | null>(null); 
-  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  // 1. State for locally fetched profile data
+  const [localProfile, setLocalProfile] = useState<Company | JobSeeker | null>(null); 
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
 
 // 2. Effect to fetch profile if the user is a company
 useEffect(() => {
-    if (currentUserRole === 'company' && currentUserId) {
-      setIsProfileLoading(true);
-      const fetchLocalProfile = async () => {
-        try {
-          // Using the correct function: api.getProfile()
-          const data = await api.getProfile();
-          setLocalProfile(data as Company); 
-        } catch (error) {
-          console.error('Error fetching real company profile for blog:', error);
-        } finally {
-          setIsProfileLoading(false);
-        }
-      };
-      fetchLocalProfile();
-    } else {
-      // If not a company, clear the local profile state
-      setLocalProfile(null);
-      setIsProfileLoading(false);
-    }
-  }, [currentUserId, currentUserRole]);
+    if (currentUserRole === 'company' && currentUserId) {
+      setIsProfileLoading(true);
+      const fetchLocalProfile = async () => {
+        try {
+          // Using the correct function: api.getProfile()
+          const data = await api.getProfile();
+          setLocalProfile(data as Company); 
+        } catch (error) {
+          console.error('Error fetching real company profile for blog:', error);
+        } finally {
+          setIsProfileLoading(false);
+        }
+      };
+      fetchLocalProfile();
+    } else {
+      // If not a company, clear the local profile state
+      setLocalProfile(null);
+      setIsProfileLoading(false);
+    }
+  }, [currentUserId, currentUserRole]);
 
 // 3. Compute the definitive name and photo URL for the 'Create Post' box
 const displayedName = useMemo(() => {
-    // Use the locally fetched profile data first (if available and loaded)
-    if (currentUserRole === 'company' && localProfile) {
-      const companyProfile = localProfile as Company;
-      // Use the robust name which your apiService already calculates
-      return companyProfile.name || 'Your Company Profile';
-    }
-    // Fallback to the name passed in via props
-    return currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile');
-  }, [localProfile, currentUserName, currentUserRole]);
+    // Use the locally fetched profile data first (if available and loaded)
+    if (currentUserRole === 'company' && localProfile) {
+      const companyProfile = localProfile as Company;
+      // Use the robust name which your apiService already calculates
+      return companyProfile.name || 'Your Company Profile';
+    }
+    // Fallback to the name passed in via props
+    return currentUserName || (currentUserRole === 'company' ? 'Your Company Profile' : 'Your Profile');
+  }, [localProfile, currentUserName, currentUserRole]);
 
 const displayedPhoto = useMemo(() => {
-    if (currentUserRole === 'company' && localProfile) {
-      const companyProfile = localProfile as Company;
-      // FIX: Correctly uses the 'logo' property from the Company interface
-      return companyProfile.logo || currentUserPhoto;
-    }
-    // Fallback to prop for other roles
-    return currentUserPhoto;
-  }, [localProfile, currentUserPhoto, currentUserRole]);
+    if (currentUserRole === 'company' && localProfile) {
+      const companyProfile = localProfile as Company;
+      // Correctly uses the 'logo' property from the Company interface
+      return companyProfile.logo || currentUserPhoto;
+    }
+    // Fallback to prop for other roles
+    return currentUserPhoto;
+  }, [localProfile, currentUserPhoto, currentUserRole]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!content.trim()) return;
-    setIsPosting(true);
-    try {
-      await onAddPost(content);
-      setContent('');
-    } catch (err) {
-      console.error('Failed to post:', err);
-    } finally {
-      setIsPosting(false);
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    setIsPosting(true);
+    try {
+      await onAddPost(content);
+      setContent('');
+    } catch (err) {
+      console.error('Failed to post:', err);
+    } finally {
+      setIsPosting(false);
+    }
+  };
 
-  const handleUpdate = async () => {
-    if (!editingPost || !editedContent.trim()) return;
-    await onUpdatePost(editingPost.id, editedContent);
-    setEditingPost(null);
-    setEditedContent('');
-  };
+  const handleUpdate = async () => {
+    if (!editingPost || !editedContent.trim()) return;
+    await onUpdatePost(editingPost.id, editedContent);
+    setEditingPost(null);
+    setEditedContent('');
+  };
 
-  const handleDelete = async () => {
-    if (!deletingPost) return;
-    await onDeletePost(deletingPost.id);
-    setDeletingPost(null);
-  };
+  const handleDelete = async () => {
+    if (!deletingPost) return;
+    await onDeletePost(deletingPost.id);
+    setDeletingPost(null);
+  };
 
-  // --- NEW: Handle Comment Deletion Confirmation and Execution ---
-  const handleDeleteCommentConfirm = async () => {
-    if (!deletingCommentInfo) return;
-    
-    try {
-      await onDeleteComment(deletingCommentInfo.postId, deletingCommentInfo.comment.id);
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-    }
-    setDeletingCommentInfo(null); // Close modal regardless of success/failure
-  };
+  // --- Handle Comment Deletion Confirmation and Execution ---
+  const handleDeleteCommentConfirm = async () => {
+    if (!deletingCommentInfo) return;
+    
+    try {
+      await onDeleteComment(deletingCommentInfo.postId, deletingCommentInfo.comment.id);
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+    setDeletingCommentInfo(null); // Close modal regardless of success/failure
+  };
 
-  return (
-    <main className="container mx-auto p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-   {/* Create Post */}
-        <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive mb-8">
-          <form onSubmit={handleSubmit} className="flex space-x-4 items-start">
-            {/* Use loading state or the correct photo */}
-            {isProfileLoading ? (
-              <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0"></div>
-            ) : (
-              <img 
-                src={displayedPhoto || 'https://placehold.co/48x48/4F46E5/FFFFFF?text=P'} 
-                alt={displayedName || "Profile Picture"} 
-                className="h-12 w-12 rounded-full object-cover flex-shrink-0" 
-              />
-            )}
-            <div className="flex-grow">
-                {/* Display the resolved name */}
-                <div className="mb-2">
-                <p className="font-bold text-lg text-neutral">
-                  {isProfileLoading ? 'Loading Profile...' : displayedName}
-                </p>
-                    {currentUserRole === 'company' && (
-                        <span className="text-sm text-gray-500">Posting as Company</span>
-                    )}
-                </div>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Share your thoughts..."
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
-                rows={3}
-                disabled={isPosting || isProfileLoading}
-              />
-              <div className="flex justify-end mt-2">
-                <button
-                  type="submit"
-                  disabled={isPosting || !content.trim() || isProfileLoading}
-                  className="bg-primary hover:bg-primary-focus text-white font-bold py-2 px-6 rounded-md transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isPosting ? 'Posting...' : 'Post'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
+  return (
+    <main className="container mx-auto p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+   {/* Create Post */}
+        <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-interactive mb-8">
+          <form onSubmit={handleSubmit} className="flex space-x-4 items-start">
+            {/* Use loading state or the correct photo */}
+            {isProfileLoading ? (
+              <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0"></div>
+            ) : (
+              <img 
+                src={displayedPhoto || 'https://placehold.co/48x48/4F46E5/FFFFFF?text=P'} 
+                alt={displayedName || "Profile Picture"} 
+                className="h-12 w-12 rounded-full object-cover flex-shrink-0" 
+              />
+            )}
+            <div className="flex-grow">
+                {/* Display the resolved name */}
+                <div className="mb-2">
+                <p className="font-bold text-lg text-neutral">
+                  {isProfileLoading ? 'Loading Profile...' : displayedName}
+                </p>
+                    {currentUserRole === 'company' && (
+                        <span className="text-sm text-gray-500">Posting as Company</span>
+                    )}
+                </div>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Share your thoughts..."
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition bg-white/50"
+                rows={3}
+                disabled={isPosting || isProfileLoading}
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  disabled={isPosting || !content.trim() || isProfileLoading}
+                  className="bg-primary hover:bg-primary-focus text-white font-bold py-2 px-6 rounded-md transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isPosting ? 'Posting...' : 'Post'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
 
-      {/* Posts Feed */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-neutral">Community Feed</h2>
-         {posts.length > 0 ? (
-  posts
-    .filter(post => post.id) // Keep this filter to ensure ID exists
-    .map((post, index) => {
-      const isNew =
-        index === 0 && new Date().getTime() - new Date(post.timestamp).getTime() < 5 * 60 * 1000;
-      return (
-        <PostCard
-          key={post.id}
-          post={post}
-          currentUserId={currentUserId}
-          currentUserRole={currentUserRole}
-          currentPosterPhoto={displayedPhoto}
-          currentPosterName={displayedName}
-          onEdit={() => {
-            setEditingPost(post);
-            setEditedContent(post.content);
-          }}
-          onDelete={() => setDeletingPost(post)}
-          onReaction={onPostReaction} 
-          onAddComment={onAddComment}
-          onUpdateComment={onUpdateComment}
-          onDeleteCommentClick={(comment) => setDeletingCommentInfo({ postId: post.id, comment })}
-          isNew={isNew}
-        />
-      );
-    })
-) :(
-            <div className="text-center text-gray-500 py-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-interactive">
-              <p>No posts yet.</p>
-              <p>Be the first to share your thoughts!</p>
-            </div>
-          )}
-        </div>
-        
-      </div>
+      {/* Posts Feed */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-neutral">Community Feed</h2>
+          {posts.length > 0 ? (
+          posts
+            .filter(post => post.id) // Keep this filter to ensure ID exists
+            .map((post, index) => {
+              // Only mark the very first post that is recently posted as NEW
+              const isNew =
+                index === 0 && new Date().getTime() - new Date(post.timestamp).getTime() < 5 * 60 * 1000;
+              return (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  currentUserId={currentUserId}
+                  currentUserRole={currentUserRole}
+                  currentPosterPhoto={displayedPhoto}
+                  currentPosterName={displayedName}
+                  onEdit={() => {
+                    setEditingPost(post);
+                    setEditedContent(post.content);
+                  }}
+                  onDelete={() => setDeletingPost(post)}
+                  onReaction={onPostReaction} 
+                  onAddComment={onAddComment}
+                  onUpdateComment={onUpdateComment}
+                  onDeleteCommentClick={(comment) => setDeletingCommentInfo({ postId: post.id, comment })}
+                  isNew={isNew}
+                />
+              );
+            })
+        ) :(
+            <div className="text-center text-gray-500 py-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-interactive">
+              <p>No posts yet.</p>
+              <p>Be the first to share your thoughts!</p>
+            </div>
+          )}
+        </div>
+        
+      </div>
 
-      {/* Modals (unchanged) */}
-      <Modal isOpen={!!editingPost} onClose={() => setEditingPost(null)} title="Edit Post">
-        <div className="space-y-4">
-          <textarea
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition"
-            rows={6}
-          />
-          <div className="flex justify-end space-x-4">
-            <button onClick={() => setEditingPost(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded-md">
-              Cancel
-            </button>
-            <button onClick={handleUpdate} className="bg-primary hover:bg-primary-focus text-white font-bold py-2 px-4 rounded-md">
-              Save Changes
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Modals (unchanged) */}
+      <Modal isOpen={!!editingPost} onClose={() => setEditingPost(null)} title="Edit Post">
+        <div className="space-y-4">
+          <textarea
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition"
+            rows={6}
+          />
+          <div className="flex justify-end space-x-4">
+            <button onClick={() => setEditingPost(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded-md">
+              Cancel
+            </button>
+            <button onClick={handleUpdate} className="bg-primary hover:bg-primary-focus text-white font-bold py-2 px-4 rounded-md">
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </Modal>
 
-      <Modal isOpen={!!deletingPost} onClose={() => setDeletingPost(null)} title="Confirm Post Deletion">
-        <div className="text-center">
-          <p className="text-lg">Are you sure you want to delete this post?</p>
-          <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
-          <div className="mt-6 flex justify-center space-x-4">
-            <button onClick={() => setDeletingPost(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-6 rounded-md">
-              Cancel
-            </button>
-            <button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <Modal isOpen={!!deletingPost} onClose={() => setDeletingPost(null)} title="Confirm Post Deletion">
+        <div className="text-center">
+          <p className="text-lg">Are you sure you want to delete this post?</p>
+          <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
+          <div className="mt-6 flex justify-center space-x-4">
+            <button onClick={() => setDeletingPost(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-6 rounded-md">
+              Cancel
+            </button>
+            <button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
 
-      <Modal isOpen={!!deletingCommentInfo} onClose={() => setDeletingCommentInfo(null)} title="Confirm Comment Deletion">
-        <div className="text-center">
-          <p className="text-lg">Are you sure you want to delete this comment?</p>
-          <p className="text-sm text-gray-600 mt-2 truncate">"{deletingCommentInfo?.comment.content}"</p>
-          <div className="mt-6 flex justify-center space-x-4">
-            <button onClick={() => setDeletingCommentInfo(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-6 rounded-md">
-              Cancel
-            </button>
-            <button onClick={handleDeleteCommentConfirm} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <Modal isOpen={!!deletingCommentInfo} onClose={() => setDeletingCommentInfo(null)} title="Confirm Comment Deletion">
+        <div className="text-center">
+          <p className="text-lg">Are you sure you want to delete this comment?</p>
+          <p className="text-sm text-gray-600 mt-2 truncate">"{deletingCommentInfo?.comment.content}"</p>
+          <div className="mt-6 flex justify-center space-x-4">
+            <button onClick={() => setDeletingCommentInfo(null)} className="bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-6 rounded-md">
+              Cancel
+            </button>
+            <button onClick={handleDeleteCommentConfirm} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
 
-      <style>{`
-        @keyframes fade-in-up {
-          0% {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.5s ease-out forwards;
-        }
-      `}</style>
-    </main>
-  );
+      <style>{`
+        @keyframes fade-in-up {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.5s ease-out forwards;
+        }
+      `}</style>
+    </main>
+  );
 };
 
 export default BlogPage;
